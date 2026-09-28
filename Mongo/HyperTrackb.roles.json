@@ -1,0 +1,63 @@
+[{
+  "_id": {
+    "$oid": "6a4c1680aa9d9369aa405d9a"
+  },
+  "publicId": "rol_01HTW8E5P3M9R4X2T7K1V8J6F3",
+  "code": "client",
+  "name": "Cliente",
+  "description": "Usuario estándar que registra entrenamientos y medidas.",
+  "scope": "personal",
+  "priority": 100,
+  "isSystem": true,
+  "status": "active",
+  "permissions": [
+    {
+      "$oid": "6a4c1680aa9d9369aa405d98"
+    }
+  ],
+  "features": [
+    "training_execution",
+    "body_tracking"
+  ],
+  "audit": {
+    "createdAt": {
+      "$date": "2026-07-06T20:56:32.896Z"
+    },
+    "updatedAt": {
+      "$date": "2026-07-06T20:56:32.896Z"
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "6a4c1680aa9d9369aa405d9b"
+  },
+  "publicId": "rol_01HTW8F1M4R9X3T2P6K8V5J7F4",
+  "code": "coach",
+  "name": "Entrenador",
+  "description": "Profesional que gestiona programas y revisa clientes.",
+  "scope": "organization",
+  "priority": 500,
+  "isSystem": true,
+  "status": "active",
+  "permissions": [
+    {
+      "$oid": "6a4c1680aa9d9369aa405d98"
+    },
+    {
+      "$oid": "6a4c1680aa9d9369aa405d99"
+    }
+  ],
+  "features": [
+    "training_management",
+    "client_analytics"
+  ],
+  "audit": {
+    "createdAt": {
+      "$date": "2026-07-06T20:56:32.896Z"
+    },
+    "updatedAt": {
+      "$date": "2026-07-06T20:56:32.896Z"
+    }
+  }
+}]

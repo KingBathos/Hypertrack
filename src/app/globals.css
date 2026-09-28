@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────
+   HyperTrack — Design System (Tailwind v4)
+   ────────────────────────────────────────────────── */
+
+@theme inline {
+  /* ── Tipografía ── */
+  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
+  --font-heading: var(--font-oswald), "Oswald", system-ui, sans-serif;
+
+  /* ── Colores de marca ── */
+  --color-brand-red: #dc2626; /* brutalist primary action */
+  --color-brand-cyan: #06b6d4; /* keep for minor highlights if needed */
+  --color-brand-emerald: #10b981;
+
+  /* ── Animaciones ── */
+  --animate-progress: progress 1.5s ease-in-out forwards;
+  --animate-in: animateIn 0.5s ease-out forwards;
+  --animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
+}
+
+/* ── Base ── */
+::selection {
+  background-color: rgba(220, 38, 38, 0.3);
+  color: #ffffff;
+}
+
+/* Scrollbar personalizado (Webkit) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* ── Keyframes ── */
+@keyframes progress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes animateIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+/* ── Utilidades Brutalism ── */
+@layer utilities {
+  .brutalist-card {
+    background: #18181b; /* zinc-900 */
+    border: 2px solid #27272a; /* zinc-800 */
+    border-radius: 0;
+  }
+
+  .brutalist-button {
+    background: var(--color-brand-red);
+    color: white;
+    font-weight: 900;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 0;
+    transition: background 0.2s ease-in-out;
+  }
+
+  .brutalist-button:hover {
+    background: #b91c1c; /* red-700 */
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out forwards;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

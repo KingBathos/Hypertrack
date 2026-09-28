@@ -1,0 +1,46 @@
+[{
+  "_id": {
+    "$oid": "6a4c1680aa9d9369aa405d9c"
+  },
+  "publicId": "exe_01HTW8H2R6X4T9P1M3K7V5J8F5",
+  "name": "Press Banca Plano con Barra",
+  "primaryMuscle": "CHEST",
+  "secondaryMuscles": [
+    "TRICEPS",
+    "FRONT_DELTS"
+  ],
+  "mechanic": "COMPOUND",
+  "equipment": "BARBELL",
+  "status": "ACTIVE",
+  "audit": {
+    "createdAt": {
+      "$date": "2026-07-06T20:56:32.898Z"
+    },
+    "updatedAt": {
+      "$date": "2026-07-06T20:56:32.898Z"
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "6a4c1680aa9d9369aa405d9d"
+  },
+  "publicId": "exe_01HTW8J4X9T2P5M7R1K6V8J9F6",
+  "name": "Sentadilla Libre con Barra",
+  "primaryMuscle": "LEGS",
+  "secondaryMuscles": [
+    "GLUTES",
+    "CORE"
+  ],
+  "mechanic": "COMPOUND",
+  "equipment": "BARBELL",
+  "status": "ACTIVE",
+  "audit": {
+    "createdAt": {
+      "$date": "2026-07-06T20:56:32.898Z"
+    },
+    "updatedAt": {
+      "$date": "2026-07-06T20:56:32.898Z"
+    }
+  }
+}]

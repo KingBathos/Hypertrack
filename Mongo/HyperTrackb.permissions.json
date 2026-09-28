@@ -1,0 +1,46 @@
+[{
+  "_id": {
+    "$oid": "6a4c1680aa9d9369aa405d98"
+  },
+  "publicId": "per_01HTW8B3V1R4T9X2M7K5P9J6F1",
+  "code": "workout.create",
+  "name": "Crear Entrenamiento",
+  "description": "Permite registrar una nueva sesión de entrenamiento.",
+  "module": "training",
+  "resource": "workout",
+  "action": "create",
+  "category": "execution",
+  "isSystem": true,
+  "status": "active",
+  "audit": {
+    "createdAt": {
+      "$date": "2026-07-06T20:56:32.886Z"
+    },
+    "updatedAt": {
+      "$date": "2026-07-06T20:56:32.886Z"
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "6a4c1680aa9d9369aa405d99"
+  },
+  "publicId": "per_01HTW8C9J2M6R4X1T9P3K8V5F2",
+  "code": "program.assign",
+  "name": "Asignar Programa",
+  "description": "Permite asignar un programa a un cliente.",
+  "module": "training",
+  "resource": "program",
+  "action": "assign",
+  "category": "management",
+  "isSystem": true,
+  "status": "active",
+  "audit": {
+    "createdAt": {
+      "$date": "2026-07-06T20:56:32.886Z"
+    },
+    "updatedAt": {
+      "$date": "2026-07-06T20:56:32.886Z"
+    }
+  }
+}]
