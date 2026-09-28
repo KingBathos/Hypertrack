@@ -143,6 +143,37 @@ export async function runAutoSeeder() {
       } as any);
     }
 
+    // Generar 3 Body Measurements (1 por semana)
+    const measurementsCol = db.collection("body_measurements");
+    for (let m = 0; m < 3; m++) {
+      const daysAgo = 21 - (m * 7); // Hace 3 sem, 2 sem, 1 sem
+      const measureDate = new Date();
+      measureDate.setDate(measureDate.getDate() - daysAgo);
+
+      // Simular recomposición: peso baja un poco, cintura baja
+      const weight = athlete.baseWeight - (m * 0.5);
+      const waist = 85 - (m * 1.2);
+      const hip = 100 - (m * 0.5);
+
+      await measurementsCol.insertOne({
+        publicId: generateId("mes"),
+        userId: athlete.userId, // Referencia al _id del usuario
+        weight: weight,
+        bodyFatPercentage: 18 - (m * 0.5),
+        circumferences: {
+          waistCm: waist,
+          hipCm: hip,
+          chestCm: 105 + (m * 0.2), // Sube un poco (músculo)
+          armCm: 35 + (m * 0.3),
+          thighCm: 60,
+          calfCm: 40
+        },
+        waistToHipRatio: Math.round((waist / hip) * 100) / 100,
+        date: measureDate,
+        audit: { createdAt: measureDate }
+      });
+    }
+
     // Generar 7 Meal Logs pasados
     for (let d = 0; d < 7; d++) {
       const daysAgo = 6 - d;

@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import WeightChart from "@/components/telemetry/WeightChart";
 import { MacroRadialChart, MacroStackedChart } from "@/components/telemetry/NutritionCharts";
+import { ACTIVITY_LEVEL_LABELS, ACTIVITY_MULTIPLIERS, TRAINING_EXPERIENCE_LABELS, TRAINING_PHASE_LABELS, STRESS_LEVEL_LABELS } from "@/lib/schemas/profile.schema";
+import type { ActivityLevel } from "@/lib/schemas/profile.schema";
 
 export default async function NutritionistClientPage({ params }: { params: Promise<{ clientId: string }> }) {
   const session = await getSession();
@@ -20,15 +22,24 @@ export default async function NutritionistClientPage({ params }: { params: Promi
   }
 
   // ─────────────────────────────────────────────
-  // 1. Profile & Biometrics
+  // 1. Profile & Biometrics (con TDEE REAL)
   // ─────────────────────────────────────────────
   const profile = await db.collection("profiles").findOne({ userId: client._id });
+  let bmr = 0;
   let tdee = 0;
   let profileWeight = 0;
   let profileHeight = 0;
   let profileAge = 0;
   let profileSex = "N/A";
   let bodyFatPercent: number | null = null;
+  let activityLevel: ActivityLevel | null = null;
+  let activityLevelLabel = "N/A";
+  let trainingExperience = "N/A";
+  let trainingFrequency = 0;
+  let sleepHours = 0;
+  let stressLevel = "N/A";
+  let trainingPhase = "N/A";
+  let primaryGoal = "N/A";
 
   if (profile) {
     profileWeight = profile.physical?.weightKg || 0;
@@ -40,13 +51,39 @@ export default async function NutritionistClientPage({ params }: { params: Promi
     }
     profileSex = profile.demographics?.sex === "MALE" ? "HOMBRE" : profile.demographics?.sex === "FEMALE" ? "MUJER" : "N/A";
 
+    // Lifestyle data
+    activityLevel = profile.lifestyle?.activityLevel || null;
+    activityLevelLabel = activityLevel ? (ACTIVITY_LEVEL_LABELS[activityLevel] || activityLevel) : "N/A";
+    trainingExperience = profile.lifestyle?.trainingExperience ? (TRAINING_EXPERIENCE_LABELS[profile.lifestyle.trainingExperience as keyof typeof TRAINING_EXPERIENCE_LABELS] || profile.lifestyle.trainingExperience) : "N/A";
+    trainingFrequency = profile.lifestyle?.trainingFrequencyDays || 0;
+    sleepHours = profile.lifestyle?.sleepHoursAvg || 0;
+    stressLevel = profile.lifestyle?.stressLevel ? (STRESS_LEVEL_LABELS[profile.lifestyle.stressLevel as keyof typeof STRESS_LEVEL_LABELS] || profile.lifestyle.stressLevel) : "N/A";
+    trainingPhase = profile.goals?.trainingPhase ? (TRAINING_PHASE_LABELS[profile.goals.trainingPhase as keyof typeof TRAINING_PHASE_LABELS] || profile.goals.trainingPhase) : "N/A";
+    primaryGoal = profile.goals?.primaryGoal || "N/A";
+
+    // TDEE REAL = BMR × Factor de Actividad (Mifflin-St Jeor)
     if (profileWeight > 0 && profileHeight > 0 && profileAge > 0) {
       const isMale = profile.demographics?.sex === "MALE";
-      tdee = isMale
+      bmr = isMale
         ? (10 * profileWeight) + (6.25 * profileHeight) - (5 * profileAge) + 5
         : (10 * profileWeight) + (6.25 * profileHeight) - (5 * profileAge) - 161;
+      
+      // Aplicar multiplicador de actividad si existe, default MODERATELY_ACTIVE
+      const multiplier = activityLevel ? (ACTIVITY_MULTIPLIERS[activityLevel] || 1.55) : 1.55;
+      tdee = Math.round(bmr * multiplier);
     }
   }
+
+  // ─────────────────────────────────────────────
+  // 1b. Últimas circunferencias corporales
+  // ─────────────────────────────────────────────
+  const latestCircumference = await db.collection("body_measurements")
+    .findOne(
+      { userId: client._id, circumferences: { $exists: true } },
+      { sort: { date: -1 } }
+    );
+  const circumferences = latestCircumference?.circumferences || null;
+  const waistToHipRatio = latestCircumference?.waistToHipRatio || null;
 
   // ─────────────────────────────────────────────
   // 2. Active Nutrition Plan
@@ -204,8 +241,13 @@ export default async function NutritionistClientPage({ params }: { params: Promi
         </div>
         <div className="flex gap-3">
           <div className="bg-black border-2 border-zinc-800 px-4 py-2 text-right">
-            <p className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">TDEE ESTIMADO</p>
-            <p className="text-2xl font-mono font-black text-white">{tdee > 0 ? `${Math.round(tdee)} KCAL` : "N/A"}</p>
+            <p className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">BMR (BASAL)</p>
+            <p className="text-lg font-mono font-black text-zinc-400">{bmr > 0 ? `${Math.round(bmr)} KCAL` : "N/A"}</p>
+          </div>
+          <div className="bg-black border-2 border-red-600 px-4 py-2 text-right">
+            <p className="text-[10px] text-red-500 font-mono font-bold uppercase tracking-widest">TDEE REAL</p>
+            <p className="text-2xl font-mono font-black text-white">{tdee > 0 ? `${tdee} KCAL` : "N/A"}</p>
+            {activityLevel && <p className="text-[9px] text-zinc-500 font-mono font-bold">×{ACTIVITY_MULTIPLIERS[activityLevel]} ({activityLevelLabel})</p>}
           </div>
           <div className={`bg-black border-2 px-4 py-2 text-right ${adherencePercent >= 90 ? 'border-green-600' : adherencePercent >= 70 ? 'border-yellow-600' : 'border-red-600'}`}>
             <p className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">ADHERENCIA</p>
@@ -238,6 +280,72 @@ export default async function NutritionistClientPage({ params }: { params: Promi
           </div>
         ))}
       </section>
+
+      {/* ── LIFESTYLE & CONTEXT ROW ── */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
+        {[
+          { label: "ACTIVIDAD", value: activityLevelLabel, accent: activityLevel === "VERY_ACTIVE" || activityLevel === "EXTRA_ACTIVE" },
+          { label: "EXPERIENCIA", value: trainingExperience },
+          { label: "FRECUENCIA", value: trainingFrequency > 0 ? `${trainingFrequency} DÍAS/SEM` : "—" },
+          { label: "SUEÑO", value: sleepHours > 0 ? `${sleepHours}H` : "—", color: sleepHours >= 7 ? "text-green-400" : sleepHours >= 6 ? "text-yellow-400" : "text-red-400" },
+          { label: "ESTRÉS", value: stressLevel },
+          { label: "FASE", value: trainingPhase },
+          { label: "OBJETIVO", value: primaryGoal },
+          { label: "RATIO C/C", value: waistToHipRatio ? `${waistToHipRatio}` : "—", color: waistToHipRatio ? (profileSex === "HOMBRE" ? (waistToHipRatio <= 0.9 ? "text-green-400" : waistToHipRatio <= 1.0 ? "text-yellow-400" : "text-red-400") : (waistToHipRatio <= 0.85 ? "text-green-400" : waistToHipRatio <= 0.9 ? "text-yellow-400" : "text-red-400")) : undefined },
+        ].map((stat, i) => (
+          <div key={i} className={`bg-zinc-950 border-2 ${stat.accent ? 'border-orange-600' : 'border-zinc-800'} p-3 text-center`}>
+            <p className="text-[8px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">{stat.label}</p>
+            <p className={`text-xs sm:text-sm font-black ${stat.color || 'text-zinc-300'} truncate`}>{stat.value}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* ── CIRCUMFERENCES ROW ── */}
+      {circumferences && (
+        <section className="mb-8">
+          <div className="bg-zinc-950 border-2 border-zinc-800 p-5">
+            <h2 className="text-xs text-zinc-500 font-mono font-bold uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2">
+              📏 CIRCUNFERENCIAS CORPORALES (ÚLTIMA MEDICIÓN)
+            </h2>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              {[
+                { label: "CINTURA", value: circumferences.waistCm, unit: "CM" },
+                { label: "CADERA", value: circumferences.hipCm, unit: "CM" },
+                { label: "PECHO", value: circumferences.chestCm, unit: "CM" },
+                { label: "BRAZO", value: circumferences.armCm, unit: "CM" },
+                { label: "MUSLO", value: circumferences.thighCm, unit: "CM" },
+                { label: "PANTORRILLA", value: circumferences.calfCm, unit: "CM" },
+              ].map((m, i) => (
+                <div key={i} className="text-center p-2 bg-black border border-zinc-800">
+                  <p className="text-[8px] text-zinc-500 font-mono font-bold uppercase tracking-widest">{m.label}</p>
+                  <p className="text-lg font-black text-white">{m.value ? `${m.value}` : "—"}</p>
+                  <p className="text-[9px] text-zinc-600 font-mono font-bold">{m.unit}</p>
+                </div>
+              ))}
+            </div>
+            {waistToHipRatio && (
+              <div className="mt-3 flex items-center justify-center gap-4 p-2 bg-black border border-zinc-800">
+                <span className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest">RATIO CINTURA/CADERA:</span>
+                <span className={`text-lg font-black ${
+                  profileSex === "HOMBRE"
+                    ? (waistToHipRatio <= 0.9 ? "text-green-400" : waistToHipRatio <= 1.0 ? "text-yellow-400" : "text-red-400")
+                    : (waistToHipRatio <= 0.85 ? "text-green-400" : waistToHipRatio <= 0.9 ? "text-yellow-400" : "text-red-400")
+                }`}>{waistToHipRatio}</span>
+                <span className={`text-[10px] font-mono font-bold uppercase ${
+                  profileSex === "HOMBRE"
+                    ? (waistToHipRatio <= 0.9 ? "text-green-600" : waistToHipRatio <= 1.0 ? "text-yellow-600" : "text-red-600")
+                    : (waistToHipRatio <= 0.85 ? "text-green-600" : waistToHipRatio <= 0.9 ? "text-yellow-600" : "text-red-600")
+                }`}>
+                  {profileSex === "HOMBRE"
+                    ? (waistToHipRatio <= 0.9 ? "SALUDABLE" : waistToHipRatio <= 1.0 ? "RIESGO MODERADO" : "RIESGO ALTO")
+                    : (waistToHipRatio <= 0.85 ? "SALUDABLE" : waistToHipRatio <= 0.9 ? "RIESGO MODERADO" : "RIESGO ALTO")
+                  }
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── ACTIVE PROTOCOL CARD ── */}
       {activePlan && (
@@ -415,13 +523,14 @@ export default async function NutritionistClientPage({ params }: { params: Promi
                 type="number"
                 required
                 defaultValue={activePlan ? planCalories : undefined}
-                placeholder={`EJ. ${tdee > 0 ? Math.round(tdee) : 2500}`}
+                placeholder={`EJ. ${tdee > 0 ? tdee : 2500}`}
                 className="w-full bg-black border-2 border-zinc-800 px-4 py-4 text-3xl font-black text-white focus:outline-none focus:border-red-600 transition-all text-center"
               />
               {tdee > 0 && (
-                <p className="text-[10px] text-zinc-500 font-mono font-bold text-center uppercase tracking-widest">
-                  SUGERENCIA BASADA EN TDEE: {Math.round(tdee)} KCAL (MANTENIMIENTO) · {Math.round(tdee - 500)} KCAL (DÉFICIT) · {Math.round(tdee + 300)} KCAL (SUPERÁVIT)
-                </p>
+                <div className="text-[10px] text-zinc-500 font-mono font-bold text-center uppercase tracking-widest space-y-1">
+                  <p>BMR: {Math.round(bmr)} KCAL × {activityLevel ? ACTIVITY_MULTIPLIERS[activityLevel] : 1.55} = <span className="text-white">TDEE: {tdee} KCAL</span></p>
+                  <p>DÉFICIT (-500): <span className="text-red-400">{tdee - 500} KCAL</span> · MANTENIMIENTO: <span className="text-green-400">{tdee} KCAL</span> · SUPERÁVIT (+300): <span className="text-yellow-400">{tdee + 300} KCAL</span></p>
+                </div>
               )}
             </div>
 

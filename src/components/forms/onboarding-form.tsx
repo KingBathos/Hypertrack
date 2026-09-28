@@ -12,8 +12,12 @@ import {
   GOAL_LABELS,
   GOAL_DESCRIPTIONS,
   GOAL_ICONS,
+  ACTIVITY_LEVEL_LABELS,
+  ACTIVITY_LEVEL_DESCRIPTIONS,
+  TRAINING_EXPERIENCE_LABELS,
   type ProfileFormData,
   type PrimaryGoal,
+  type ActivityLevel,
 } from "@/lib/schemas/profile.schema";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -29,6 +33,7 @@ const STEPS = [
   { title: "Perfil biológico",  subtitle: "Datos demográficos",         icon: "🧬" },
   { title: "Contacto y cuerpo", subtitle: "Contacto y medidas",          icon: "📱" },
   { title: "Objetivo",          subtitle: "Tu meta y preferencias",     icon: "🎯" },
+  { title: "Estilo de vida",    subtitle: "Actividad y contexto deportivo", icon: "🏃" },
 ] as const;
 
 const TOTAL_STEPS = STEPS.length;
@@ -66,6 +71,10 @@ export function OnboardingForm({ userId }: OnboardingFormProps) {
       weightKg: undefined,
       primaryGoal: undefined,
       measurementSystem: "METRIC",
+      activityLevel: undefined,
+      trainingExperience: undefined,
+      trainingFrequencyDays: undefined,
+      sleepHoursAvg: undefined,
     },
     mode: "onTouched",
   });
@@ -111,6 +120,8 @@ export function OnboardingForm({ userId }: OnboardingFormProps) {
 
   const selectedGoal = watch("primaryGoal");
   const selectedMeasurement = watch("measurementSystem");
+  const selectedActivity = watch("activityLevel");
+  const selectedExperience = watch("trainingExperience");
 
   // ── Estado de éxito ──
 
@@ -293,6 +304,78 @@ export function OnboardingForm({ userId }: OnboardingFormProps) {
             {errors.measurementSystem?.message && (
               <p className="mt-1 text-xs text-red-400">{errors.measurementSystem.message}</p>
             )}
+          </div>
+        </div>
+
+        {/* PASO 5: Estilo de vida y contexto deportivo */}
+        <div className={currentStep === 4 ? "flex flex-col gap-4" : "hidden"}>
+          {/* Nivel de actividad */}
+          <div>
+            <p className="mb-2 text-sm font-medium text-zinc-400">Nivel de actividad física</p>
+            <div className="grid gap-2">
+              {(Object.entries(ACTIVITY_LEVEL_LABELS) as [ActivityLevel, string][]).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setValue("activityLevel", value, { shouldValidate: true, shouldTouch: true })}
+                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 cursor-pointer
+                    ${selectedActivity === value
+                      ? "border-orange-500/50 bg-orange-500/5 ring-2 ring-orange-500/20"
+                      : "border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600"}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm ${selectedActivity === value ? "text-orange-300" : "text-zinc-200"}`}>{label}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">{ACTIVITY_LEVEL_DESCRIPTIONS[value]}</p>
+                  </div>
+                  <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all
+                    ${selectedActivity === value ? "border-orange-400 bg-orange-400" : "border-zinc-600"}`}>
+                    {selectedActivity === value && <div className="h-2 w-2 rounded-full bg-zinc-950" />}
+                  </div>
+                  <input type="radio" value={value} className="sr-only" {...register("activityLevel")} />
+                </button>
+              ))}
+            </div>
+            {errors.activityLevel?.message && (
+              <p className="mt-1 text-xs text-red-400">{errors.activityLevel.message}</p>
+            )}
+          </div>
+
+          {/* Experiencia de entrenamiento */}
+          <div>
+            <p className="mb-2 text-sm font-medium text-zinc-400">Experiencia de entrenamiento</p>
+            <div className="flex gap-2">
+              {(Object.entries(TRAINING_EXPERIENCE_LABELS) as [string, string][]).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setValue("trainingExperience", value as any, { shouldValidate: true, shouldTouch: true })}
+                  className={`flex flex-1 flex-col items-center rounded-xl border py-3 transition-all duration-200 cursor-pointer
+                    ${selectedExperience === value
+                      ? "border-cyan-500/50 bg-cyan-500/5 ring-2 ring-cyan-500/20"
+                      : "border-zinc-700/50 bg-zinc-900/30 hover:border-zinc-600"}`}
+                >
+                  <span className={`text-sm font-semibold text-center ${selectedExperience === value ? "text-cyan-300" : "text-zinc-300"}`}>
+                    {label}
+                  </span>
+                  <input type="radio" value={value} className="sr-only" {...register("trainingExperience")} />
+                </button>
+              ))}
+            </div>
+            {errors.trainingExperience?.message && (
+              <p className="mt-1 text-xs text-red-400">{errors.trainingExperience.message}</p>
+            )}
+          </div>
+
+          {/* Frecuencia y sueño */}
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Días de entreno / semana" type="number" placeholder="5" min={1} max={7}
+              hint="De 1 a 7 días"
+              error={errors.trainingFrequencyDays?.message}
+              {...register("trainingFrequencyDays", { valueAsNumber: true })} />
+            <Input label="Horas de sueño promedio" type="number" placeholder="7" min={3} max={14} step={0.5}
+              hint="Promedio diario"
+              error={errors.sleepHoursAvg?.message}
+              {...register("sleepHoursAvg", { valueAsNumber: true })} />
           </div>
         </div>
 

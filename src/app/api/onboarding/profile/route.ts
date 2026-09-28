@@ -42,8 +42,13 @@ export async function POST(request: Request) {
       birthDate,
       phone,
       heightCm,
+      weightKg,
       primaryGoal,
       measurementSystem,
+      activityLevel,
+      trainingExperience,
+      trainingFrequencyDays,
+      sleepHoursAvg,
     } = parsed.data;
 
     // 2. Conectar
@@ -111,11 +116,18 @@ export async function POST(request: Request) {
 
       physical: {
         heightCm,                // int validado por Zod
-        weightKg: 0,
+        weightKg: weightKg || 0,
       },
 
       goals: {
         primaryGoal,
+      },
+
+      lifestyle: {
+        activityLevel,
+        trainingExperience,
+        trainingFrequencyDays,
+        sleepHoursAvg,
       },
 
       preferences: {
@@ -129,7 +141,7 @@ export async function POST(request: Request) {
       },
 
       metadata: {
-        schemaVersion: 1,
+        schemaVersion: 2,
       },
 
       audit: {

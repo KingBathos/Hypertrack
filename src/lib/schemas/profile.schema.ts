@@ -59,6 +59,121 @@ export const GOAL_ICONS: Record<PrimaryGoal, string> = {
   RECOMPOSITION: "⚖️",
 };
 
+// ── Nivel de Actividad Física (PAL) ──
+
+export const ACTIVITY_LEVEL_OPTIONS = {
+  SEDENTARY: "SEDENTARY",
+  LIGHTLY_ACTIVE: "LIGHTLY_ACTIVE",
+  MODERATELY_ACTIVE: "MODERATELY_ACTIVE",
+  VERY_ACTIVE: "VERY_ACTIVE",
+  EXTRA_ACTIVE: "EXTRA_ACTIVE",
+} as const;
+
+export type ActivityLevel = keyof typeof ACTIVITY_LEVEL_OPTIONS;
+
+export const ACTIVITY_LEVEL_LABELS: Record<ActivityLevel, string> = {
+  SEDENTARY: "Sedentario",
+  LIGHTLY_ACTIVE: "Ligeramente activo",
+  MODERATELY_ACTIVE: "Moderadamente activo",
+  VERY_ACTIVE: "Muy activo",
+  EXTRA_ACTIVE: "Extremadamente activo",
+};
+
+export const ACTIVITY_LEVEL_DESCRIPTIONS: Record<ActivityLevel, string> = {
+  SEDENTARY: "Trabajo de escritorio, poco o nada de ejercicio",
+  LIGHTLY_ACTIVE: "Ejercicio ligero 1-3 días/semana",
+  MODERATELY_ACTIVE: "Ejercicio moderado 3-5 días/semana",
+  VERY_ACTIVE: "Ejercicio intenso 6-7 días/semana",
+  EXTRA_ACTIVE: "Atleta profesional o trabajo físico muy pesado",
+};
+
+/** Multiplicadores Harris-Benedict para TDEE = BMR × factor */
+export const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
+  SEDENTARY: 1.2,
+  LIGHTLY_ACTIVE: 1.375,
+  MODERATELY_ACTIVE: 1.55,
+  VERY_ACTIVE: 1.725,
+  EXTRA_ACTIVE: 1.9,
+};
+
+// ── Experiencia de Entrenamiento ──
+
+export const TRAINING_EXPERIENCE_OPTIONS = {
+  BEGINNER: "BEGINNER",
+  INTERMEDIATE: "INTERMEDIATE",
+  ADVANCED: "ADVANCED",
+} as const;
+
+export type TrainingExperience = keyof typeof TRAINING_EXPERIENCE_OPTIONS;
+
+export const TRAINING_EXPERIENCE_LABELS: Record<TrainingExperience, string> = {
+  BEGINNER: "Principiante (< 1 año)",
+  INTERMEDIATE: "Intermedio (1-3 años)",
+  ADVANCED: "Avanzado (3+ años)",
+};
+
+// ── Tipo de Entrenamiento ──
+
+export const TRAINING_TYPE_OPTIONS = {
+  BODYBUILDING: "BODYBUILDING",
+  POWERLIFTING: "POWERLIFTING",
+  CROSSFIT: "CROSSFIT",
+  CALISTHENICS: "CALISTHENICS",
+  FUNCTIONAL: "FUNCTIONAL",
+  MIXED: "MIXED",
+} as const;
+
+export type TrainingType = keyof typeof TRAINING_TYPE_OPTIONS;
+
+export const TRAINING_TYPE_LABELS: Record<TrainingType, string> = {
+  BODYBUILDING: "Bodybuilding",
+  POWERLIFTING: "Powerlifting",
+  CROSSFIT: "CrossFit",
+  CALISTHENICS: "Calistenia",
+  FUNCTIONAL: "Funcional",
+  MIXED: "Mixto",
+};
+
+// ── Nivel de Estrés ──
+
+export const STRESS_LEVEL_OPTIONS = {
+  LOW: "LOW",
+  MODERATE: "MODERATE",
+  HIGH: "HIGH",
+  VERY_HIGH: "VERY_HIGH",
+} as const;
+
+export type StressLevel = keyof typeof STRESS_LEVEL_OPTIONS;
+
+export const STRESS_LEVEL_LABELS: Record<StressLevel, string> = {
+  LOW: "Bajo",
+  MODERATE: "Moderado",
+  HIGH: "Alto",
+  VERY_HIGH: "Muy alto",
+};
+
+// ── Fase de Entrenamiento ──
+
+export const TRAINING_PHASE_OPTIONS = {
+  BULK: "BULK",
+  CUT: "CUT",
+  MAINTENANCE: "MAINTENANCE",
+  REVERSE_DIET: "REVERSE_DIET",
+} as const;
+
+export type TrainingPhase = keyof typeof TRAINING_PHASE_OPTIONS;
+
+export const TRAINING_PHASE_LABELS: Record<TrainingPhase, string> = {
+  BULK: "Volumen (Bulk)",
+  CUT: "Definición (Cut)",
+  MAINTENANCE: "Mantenimiento",
+  REVERSE_DIET: "Dieta Reversa",
+};
+
+// ──────────────────────────────────────────────────
+// Schemas del Stepper (Onboarding)
+// ──────────────────────────────────────────────────
+
 // ── Paso 1: Nombre y apellido ──
 
 export const profileStep1Schema = z.object({
@@ -133,12 +248,35 @@ export const profileStep4Schema = z.object({
   ),
 });
 
+// ── Paso 5: Estilo de vida y contexto deportivo ──
+
+export const profileStep5Schema = z.object({
+  activityLevel: z.enum(
+    ["SEDENTARY", "LIGHTLY_ACTIVE", "MODERATELY_ACTIVE", "VERY_ACTIVE", "EXTRA_ACTIVE"],
+    { error: "Selecciona tu nivel de actividad" }
+  ),
+  trainingExperience: z.enum(
+    ["BEGINNER", "INTERMEDIATE", "ADVANCED"],
+    { error: "Selecciona tu experiencia" }
+  ),
+  trainingFrequencyDays: z
+    .number({ error: "Indica cuántos días entrenas" })
+    .int("Debe ser un número entero")
+    .min(1, "Mínimo 1 día")
+    .max(7, "Máximo 7 días"),
+  sleepHoursAvg: z
+    .number({ error: "Indica tus horas de sueño" })
+    .min(3, "Mínimo 3 horas")
+    .max(14, "Máximo 14 horas"),
+});
+
 // ── Schema completo fusionado ──
 
 export const profileFormSchema = profileStep1Schema
   .merge(profileStep2Schema)
   .merge(profileStep3Schema)
-  .merge(profileStep4Schema);
+  .merge(profileStep4Schema)
+  .merge(profileStep5Schema);
 
 export type ProfileFormData = z.infer<typeof profileFormSchema>;
 
@@ -159,9 +297,10 @@ export const STEP_SCHEMAS = [
   profileStep2Schema,
   profileStep3Schema,
   profileStep4Schema,
+  profileStep5Schema,
 ] as const;
 
-// ── Biometría (Mediciones Corporales) ──
+// ── Biometría (Mediciones Corporales con Circunferencias) ──
 
 export const biometricsSchema = z.object({
   weight: z
@@ -171,8 +310,21 @@ export const biometricsSchema = z.object({
   bodyFatPercentage: z
     .number()
     .min(1, "Mínimo 1%")
-    .max(100, "Máximo 100%")
+    .max(60, "Máximo 60%")
     .optional()
+    .or(z.nan().transform(() => undefined)),
+  // Circunferencias corporales (todas opcionales, en cm)
+  waistCm: z.number().min(30, "Mínimo 30 cm").max(200, "Máximo 200 cm").optional()
+    .or(z.nan().transform(() => undefined)),
+  hipCm: z.number().min(30, "Mínimo 30 cm").max(200, "Máximo 200 cm").optional()
+    .or(z.nan().transform(() => undefined)),
+  chestCm: z.number().min(40, "Mínimo 40 cm").max(200, "Máximo 200 cm").optional()
+    .or(z.nan().transform(() => undefined)),
+  armCm: z.number().min(15, "Mínimo 15 cm").max(70, "Máximo 70 cm").optional()
+    .or(z.nan().transform(() => undefined)),
+  thighCm: z.number().min(20, "Mínimo 20 cm").max(100, "Máximo 100 cm").optional()
+    .or(z.nan().transform(() => undefined)),
+  calfCm: z.number().min(15, "Mínimo 15 cm").max(70, "Máximo 70 cm").optional()
     .or(z.nan().transform(() => undefined)),
 });
 

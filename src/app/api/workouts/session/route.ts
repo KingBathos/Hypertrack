@@ -129,7 +129,6 @@ export async function POST(request: Request) {
           totalSets,
           totalVolume: Math.round(totalVolume * 100) / 100,
           durationMinutes,
-          prsBroken,
         },
       },
       { status: 201 }

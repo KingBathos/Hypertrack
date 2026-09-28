@@ -66,6 +66,12 @@ export async function logBiometrics(formData: FormData) {
   const payload = {
     weight: Number(formData.get("weight")),
     bodyFatPercentage: formData.get("bodyFatPercentage") ? Number(formData.get("bodyFatPercentage")) : undefined,
+    waistCm: formData.get("waistCm") ? Number(formData.get("waistCm")) : undefined,
+    hipCm: formData.get("hipCm") ? Number(formData.get("hipCm")) : undefined,
+    chestCm: formData.get("chestCm") ? Number(formData.get("chestCm")) : undefined,
+    armCm: formData.get("armCm") ? Number(formData.get("armCm")) : undefined,
+    thighCm: formData.get("thighCm") ? Number(formData.get("thighCm")) : undefined,
+    calfCm: formData.get("calfCm") ? Number(formData.get("calfCm")) : undefined,
   };
 
   const validatedFields = biometricsSchema.safeParse(payload);
@@ -83,27 +89,49 @@ export async function logBiometrics(formData: FormData) {
       return { success: false, error: "Usuario no encontrado." };
     }
 
+    // Construir circunferencias (solo las que se proporcionaron)
+    const circumferences: Record<string, number> = {};
+    if (validatedFields.data.waistCm) circumferences.waistCm = validatedFields.data.waistCm;
+    if (validatedFields.data.hipCm) circumferences.hipCm = validatedFields.data.hipCm;
+    if (validatedFields.data.chestCm) circumferences.chestCm = validatedFields.data.chestCm;
+    if (validatedFields.data.armCm) circumferences.armCm = validatedFields.data.armCm;
+    if (validatedFields.data.thighCm) circumferences.thighCm = validatedFields.data.thighCm;
+    if (validatedFields.data.calfCm) circumferences.calfCm = validatedFields.data.calfCm;
+
+    // Calcular ratio cintura/cadera automáticamente
+    let waistToHipRatio: number | undefined;
+    if (circumferences.waistCm && circumferences.hipCm) {
+      waistToHipRatio = Math.round((circumferences.waistCm / circumferences.hipCm) * 100) / 100;
+    }
+
     // Insertar en body_measurements
     const newMeasurement = {
       publicId: `mes_${ulid()}`,
-      clientId: user._id,
-      logDate: new Date(),
-      metrics: {
-        weightKg: validatedFields.data.weight,
-        ...(validatedFields.data.bodyFatPercentage ? { bodyFatPercentage: validatedFields.data.bodyFatPercentage } : {})
-      },
+      userId: user._id,
+      weight: validatedFields.data.weight,
+      ...(validatedFields.data.bodyFatPercentage ? { bodyFatPercentage: validatedFields.data.bodyFatPercentage } : {}),
+      ...(Object.keys(circumferences).length > 0 ? { circumferences } : {}),
+      ...(waistToHipRatio ? { waistToHipRatio } : {}),
+      date: new Date(),
       audit: {
         createdAt: new Date(),
-        updatedAt: new Date()
       }
     };
 
     await db.collection("body_measurements").insertOne(newMeasurement);
 
     // Actualizar también en el perfil para tener la foto más reciente siempre a la mano
+    const profileUpdate: Record<string, any> = {
+      "physical.weightKg": validatedFields.data.weight,
+      "audit.updatedAt": new Date(),
+    };
+    if (validatedFields.data.bodyFatPercentage) {
+      profileUpdate["physical.bodyFatPercentage"] = validatedFields.data.bodyFatPercentage;
+    }
+
     await db.collection("profiles").updateOne(
       { userId: user._id },
-      { $set: { "physical.weightKg": validatedFields.data.weight, "audit.updatedAt": new Date() } }
+      { $set: profileUpdate }
     );
 
     revalidatePath("/dashboard");

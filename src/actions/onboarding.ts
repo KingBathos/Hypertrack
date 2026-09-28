@@ -43,10 +43,16 @@ export async function saveOnboardingProfile(data: any, userId: string) {
     },
     physical: {
       heightCm: Number(data.heightCm),
-      weightKg: Number(data.weightKg || 0), // Not in the schema currently but requested by user
+      weightKg: Number(data.weightKg || 0),
     },
     goals: {
       primaryGoal: data.primaryGoal,
+    },
+    lifestyle: {
+      activityLevel: data.activityLevel,
+      trainingExperience: data.trainingExperience,
+      trainingFrequencyDays: Number(data.trainingFrequencyDays),
+      sleepHoursAvg: Number(data.sleepHoursAvg),
     },
     preferences: {
       measurementSystem: data.measurementSystem,
@@ -56,14 +62,14 @@ export async function saveOnboardingProfile(data: any, userId: string) {
       allergies: [],
     },
     metadata: {
-      schemaVersion: 1,
+      schemaVersion: 2,
     },
     audit: {
       createdAt: now,
       updatedAt: now,
     },
-    onboardingCompleted: true, // Requested by user
-  } as any; // Cast as any because of dynamic modifications like onboardingCompleted and weightKg
+    onboardingCompleted: true,
+  } as any;
 
   try {
     await profilesCollection.insertOne(profileDocument as any);

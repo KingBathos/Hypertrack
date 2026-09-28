@@ -5,13 +5,14 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { workoutProgramSchema, type WorkoutProgram, DAYS_OF_WEEK } from "@/lib/schemas/routine.schema";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 
 export function RoutineForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm<WorkoutProgram>({
+  const { register, control, handleSubmit, formState: { errors } } = useForm<z.infer<typeof workoutProgramSchema>>({
     resolver: zodResolver(workoutProgramSchema),
     defaultValues: {
       name: "",
@@ -20,7 +21,7 @@ export function RoutineForm() {
       authorId: "pending", 
       clientId: "pending", 
       exercises: [{ exerciseName: "", sets: [{ setNumber: 1, reps: 10, weight: 0, unit: "KG" }] }]
-    }
+    } as z.infer<typeof workoutProgramSchema>
   });
 
   const { fields, append, remove } = useFieldArray({

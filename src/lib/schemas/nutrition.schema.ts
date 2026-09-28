@@ -7,11 +7,12 @@ import { z } from "zod";
 // Enums permitidos para las comidas
 export const mealTypes = ["Desayuno", "Almuerzo", "Cena", "Snack"] as const;
 
-// Schema base para macros
+// Schema base para macros (incluye fibra)
 export const macrosSchema = z.object({
   protein: z.number().min(0, "La proteína no puede ser negativa"),
   carbs: z.number().min(0, "Los carbohidratos no pueden ser negativos"),
   fats: z.number().min(0, "Las grasas no pueden ser negativas"),
+  fiber: z.number().min(0, "La fibra no puede ser negativa").optional(),
 });
 
 // Schema para registrar una comida (Frontend -> Backend)
@@ -26,6 +27,11 @@ export const mealLogSchema = z.object({
     .positive("Las calorías deben ser mayores a 0")
     .max(5000, "Valor de calorías poco realista"),
   macros: macrosSchema,
+  hydrationLiters: z
+    .number()
+    .min(0, "No puede ser negativo")
+    .max(10, "Máximo 10 litros")
+    .optional(),
 });
 
 export type MealLogFormData = z.infer<typeof mealLogSchema>;
@@ -37,6 +43,8 @@ export const nutritionPlanSchema = z.object({
     .min(1000, "El mínimo recomendado son 1000 calorías")
     .max(10000, "Valor calórico no permitido"),
   macros: macrosSchema,
+  dailyFiberTarget: z.number().min(0).max(100).optional(),
+  dailyHydrationTarget: z.number().min(0.5, "Mínimo 0.5 litros").max(10, "Máximo 10 litros").optional(),
 });
 
 export type NutritionPlanFormData = z.infer<typeof nutritionPlanSchema>;

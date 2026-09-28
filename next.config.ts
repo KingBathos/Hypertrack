@@ -7,7 +7,7 @@ const withPWA = require("next-pwa")({
 });
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  turbopack: {}, // Silences Next 16 turbopack warning caused by next-pwa injecting webpack config
 };
 
 export default withPWA(nextConfig);
