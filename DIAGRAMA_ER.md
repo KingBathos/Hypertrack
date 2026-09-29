@@ -1,182 +1,462 @@
-# Diagrama Entidad-Relación (ER) - HyperTrack
+# Diseño Lógico de la Base de Datos - HyperTrack
 
-A continuación se presenta el modelo de datos completo de la plataforma HyperTrack, incluyendo tanto las colecciones principales documentadas en los esquemas de la aplicación como las colecciones de infraestructura (roles, auditoría, organizaciones) encontradas en la base de datos MongoDB.
+> Diagrama generado a partir de la inspección directa de la base de datos MongoDB local (`HyperTrackb`).  
+> **19 colecciones** encontradas. Estructura de cada documento verificada contra datos reales.
 
-## Diagrama ER Completo
+---
 
-```mermaid
-erDiagram
-    USERS ||--o| PROFILES : "tiene un"
-    USERS ||--o{ WORKOUT_SESSIONS : "realiza"
-    USERS ||--o{ NUTRITION_PLANS : "se le asigna"
-    USERS ||--o{ MEAL_LOGS : "registra"
-    USERS ||--o{ BODY_MEASUREMENTS : "registra"
-    USERS ||--o{ PROGRESS_PHOTOS : "sube"
-    USERS ||--o| DASHBOARD_CACHE : "posee"
-    
-    USERS }o--o{ ROLES : "posee (referencia)"
-    ROLES ||--o{ PERMISSIONS : "incluye"
+## Diagrama Entidad-Relación (PlantUML)
 
-    ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERS : "tiene"
-    USERS ||--o{ ORGANIZATION_MEMBERS : "pertenece a"
+```plantuml
+@startuml HyperTrack_ER
+!theme plain
+skinparam linetype ortho
+skinparam EntityBackgroundColor #1A1A1A
+skinparam EntityBorderColor #DC2626
+skinparam EntityFontColor #FFFFFF
+skinparam EntityHeaderBackgroundColor #DC2626
+skinparam EntityHeaderFontColor #FFFFFF
+skinparam AttributeFontColor #D4D4D8
+skinparam ArrowColor #71717A
+skinparam BackgroundColor #09090B
 
-    TRAINING_PROGRAMS ||--o{ PROGRAM_VERSIONS : "tiene"
-    PROGRAM_VERSIONS ||--o{ PROGRAM_ASSIGNMENTS : "asignado en"
-    USERS ||--o{ PROGRAM_ASSIGNMENTS : "recibe"
+title Diseño Lógico — Base de Datos HyperTrack (MongoDB)\n19 Colecciones · NoSQL Document Store
 
-    EXERCISE_LIBRARY ||--o{ WORKOUT_SESSIONS : "referenciado en"
+' ══════════════════════════════════════════════════
+' ENTIDADES PRINCIPALES (con datos reales)
+' ══════════════════════════════════════════════════
 
-    USERS {
-        ObjectId _id PK
-        String publicId
-        String email
-        String password_hash
-        String role "Opcional (Ej. COACH, NUTRITIONIST)"
-        Date createdAt
-        Date updatedAt
-    }
+entity "users" as U {
+  * _id : ObjectId <<PK>>
+  --
+  * publicId : String <<UK>>
+  --
+  * email.value : String
+  * email.normalized : String
+  * email.verified : Boolean
+  email.verifiedAt : Date | null
+  --
+  * authentication.passwordHash : String
+  * authentication.algorithm : String ("argon2id")
+  authentication.failedAttempts : Number
+  authentication.lockedUntil : Date | null
+  --
+  * account.status : Enum("PENDING_VERIFICATION","ACTIVE","SUSPENDED")
+  account.language : String ("es-PE")
+  account.timezone : String ("America/Lima")
+  --
+  * role : Enum("USER","COACH","NUTRITIONIST","ADMIN")
+  --
+  metadata.schemaVersion : Number
+  metadata.source : String ("web")
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+  audit.lastLoginAt : Date | null
+}
 
-    PROFILES {
-        ObjectId _id PK
-        ObjectId userId FK "Ref: USERS"
-        String firstName
-        String lastName
-        Enum sex "MALE, FEMALE, OTHER..."
-        Date birthDate
-        String phone
-        Number heightCm
-        Number weightKg
-        Enum primaryGoal
-        Enum measurementSystem
-    }
+entity "profiles" as P {
+  * _id : ObjectId <<PK>>
+  * userId : ObjectId <<FK -> users>>
+  * publicId : String <<UK>>
+  --
+  * identity.firstName : String
+  * identity.lastName : String
+  identity.displayName : String
+  --
+  contact.phone : String
+  contact.country : String
+  --
+  demographics.birthDate : Date
+  * demographics.sex : Enum("MALE","FEMALE")
+  --
+  * physical.heightCm : Number
+  physical.weightKg : Number
+  physical.bodyFatPercentage : Number
+  physical.activityLevel : Enum
+  physical.waistCircumference : Number
+  physical.hipCircumference : Number
+  physical.waistToHipRatio : Number
+  --
+  goals.primaryGoal : Enum("HYPERTROPHY","STRENGTH","FAT_LOSS","ENDURANCE")
+  goals.stressLevel : Enum
+  goals.sleepHoursAvg : Number
+  --
+  training.experience : Enum
+  training.frequencyDays : Number
+  --
+  preferences.measurementSystem : Enum("METRIC","IMPERIAL")
+  --
+  medical.injuries : Array<String>
+  medical.allergies : Array<String>
+  --
+  metadata.schemaVersion : Number
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+}
 
-    ROLES {
-        ObjectId _id PK
-        String publicId
-        String code "Ej: client, coach"
-        String name
-        String description
-        String scope
-        Array permissions FK "Ref: PERMISSIONS"
-    }
+entity "body_measurements" as BM {
+  * _id : ObjectId <<PK>>
+  * userId : ObjectId <<FK -> users>>
+  --
+  * date : Date
+  * weight : Number
+  bodyFatPercentage : Number
+  waist : Number
+  hip : Number
+  chest : Number
+  arm : Number
+  thigh : Number
+  calf : Number
+  waistToHipRatio : Number
+  notes : String
+}
 
-    PERMISSIONS {
-        ObjectId _id PK
-        String publicId
-        String code "Ej: workout.create"
-        String name
-        String module
-        String action
-    }
+entity "exercise_library" as EL {
+  * _id : ObjectId <<PK>>
+  * publicId : String <<UK>>
+  --
+  * name : String
+  * primaryMuscle : Enum("CHEST","BACK","SHOULDERS","LEGS","ARMS","CORE")
+  * mechanic : Enum("COMPOUND","ISOLATION")
+  * equipment : Enum("BARBELL","DUMBBELL","MACHINE","BODYWEIGHT","CABLE")
+  * status : Enum("ACTIVE","INACTIVE")
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+}
 
-    EXERCISE_LIBRARY {
-        ObjectId _id PK
-        String publicId
-        String name
-        Enum primaryMuscle
-        Array secondaryMuscles
-        Enum mechanic
-        Enum equipment
-    }
+entity "training_programs" as TP {
+  * _id : ObjectId <<PK>>
+  * publicId : String <<UK>>
+  * authorId : ObjectId <<FK -> users (COACH)>>
+  --
+  * name : String
+  description : String
+  * goal : Enum("HYPERTROPHY","STRENGTH","ENDURANCE")
+  * level : Enum("BEGINNER","INTERMEDIATE","ADVANCED")
+  * status : Enum("ACTIVE","INACTIVE","ARCHIVED")
+  --
+  * exercises : Array<ExerciseDoc> <<Embedded>>
+  .. exercises[].order : Number ..
+  .. exercises[].exerciseId : String (ref exercise_library) ..
+  .. exercises[].exerciseName : String ..
+  .. exercises[].targetSets : Number ..
+  .. exercises[].targetReps : Number ..
+  .. exercises[].targetRpe : Number ..
+  .. exercises[].restSeconds : Number ..
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+  audit.createdBy : ObjectId
+}
 
-    WORKOUT_SESSIONS {
-        ObjectId _id PK
-        ObjectId userId FK "Ref: USERS"
-        ObjectId programId FK "Ref: TRAINING_PROGRAMS (Opcional)"
-        Enum type "FREE, PROGRAM"
-        String name
-        Date startedAt
-        Date finishedAt
-        Array exercises "Ejercicios y Series (Embebidos)"
-    }
+entity "workout_programs" as WP {
+  * _id : ObjectId <<PK>>
+  --
+  * name : String
+  * authorId : String (ref users.publicId)
+  * clientId : String (ref users.publicId)
+  * status : Enum("ACTIVE","INACTIVE","ARCHIVED")
+  * assignedDays : Array<Enum("MONDAY".."SUNDAY")>
+  --
+  * exercises : Array<ExerciseDoc> <<Embedded>>
+  .. exercises[].exerciseName : String ..
+  .. exercises[].sets[] : Array<SetDoc> ..
+  .. exercises[].sets[].setNumber : Number ..
+  .. exercises[].sets[].reps : Number ..
+  .. exercises[].sets[].weight : Number ..
+  .. exercises[].sets[].unit : Enum("KG","LBS") ..
+  --
+  * createdAt : Date
+  * updatedAt : Date
+}
 
-    NUTRITION_PLANS {
-        ObjectId _id PK
-        ObjectId userId FK "Ref: USERS"
-        Number dailyCalories
-        Object macros "protein, carbs, fats"
-    }
+entity "program_assignments" as PA {
+  * _id : ObjectId <<PK>>
+  * publicId : String <<UK>>
+  --
+  * clientId : ObjectId <<FK -> users>>
+  * coachId : ObjectId <<FK -> users>>
+  * programVersionId : ObjectId <<FK -> training_programs>>
+  --
+  * status : Enum("ACTIVE","COMPLETED","CANCELLED")
+  * startDate : Date
+  endDate : Date
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+  audit.createdBy : ObjectId
+}
 
-    MEAL_LOGS {
-        ObjectId _id PK
-        ObjectId userId FK "Ref: USERS"
-        Enum mealType
-        String foodName
-        Number calories
-        Object macros
-        Date createdAt
-    }
+entity "program_versions" as PV {
+  * _id : ObjectId <<PK>>
+  --
+  (Colección vacía — reservada
+  para versionado futuro
+  de programas de entrenamiento)
+}
 
-    BODY_MEASUREMENTS {
-        ObjectId _id PK
-        ObjectId userId FK "Ref: USERS"
-        Number weight
-        Number bodyFatPercentage
-        Date recordedAt
-    }
-    
-    PROGRESS_PHOTOS {
-        ObjectId _id PK
-        ObjectId userId FK "Ref: USERS"
-        String photoUrl
-        Date uploadedAt
-    }
+entity "workout_sessions" as WS {
+  * _id : ObjectId <<PK>>
+  * publicId : String <<UK>>
+  * clientId : ObjectId <<FK -> users>>
+  --
+  * status : Enum("COMPLETED","IN_PROGRESS","CANCELLED")
+  * type : Enum("FREE","PROGRAM")
+  * name : String
+  * startedAt : Date
+  finishedAt : Date
+  durationMinutes : Number
+  --
+  * exercises : Array<SessionExerciseDoc> <<Embedded>>
+  .. exercises[].exerciseId : ObjectId ..
+  .. exercises[].order : Number ..
+  .. exercises[].exerciseName : String ..
+  .. exercises[].sets[] : Array<SetDoc> ..
+  .. exercises[].sets[].setNumber : Number ..
+  .. exercises[].sets[].setType : Enum("WORKING","WARMUP") ..
+  .. exercises[].sets[].reps : Number ..
+  .. exercises[].sets[].weight : Number ..
+  .. exercises[].sets[].unit : Enum("KG","LBS") ..
+  .. exercises[].sets[].rpe : Number ..
+  .. exercises[].sets[].completed : Boolean ..
+  --
+  metadata.schemaVersion : Number
+  metadata.source : String
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+}
 
-    ORGANIZATIONS {
-        ObjectId _id PK
-        String name
-        String ownerId FK "Ref: USERS"
-    }
+entity "personal_records" as PR {
+  * _id : ObjectId <<PK>>
+  * clientId : ObjectId <<FK -> users>>
+  * workoutSessionId : ObjectId <<FK -> workout_sessions>>
+  --
+  * exerciseId : String
+  * exerciseName : String
+  * maxWeight : String
+  * maxWeightReps : String
+  * maxWeightUnit : Enum("KG","LBS")
+  estimated1RM : Number
+  * dateAchieved : Date
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+}
 
-    ORGANIZATION_MEMBERS {
-        ObjectId _id PK
-        ObjectId organizationId FK "Ref: ORGANIZATIONS"
-        ObjectId userId FK "Ref: USERS"
-        String role
-    }
+entity "nutrition_plans" as NP {
+  * _id : ObjectId <<PK>>
+  * publicId : String <<UK>>
+  * clientId : ObjectId <<FK -> users>>
+  --
+  * status : Enum("ACTIVE","ARCHIVED")
+  --
+  * dailyTargets.calories : Number
+  * dailyTargets.proteinGrams : Number
+  * dailyTargets.carbsGrams : Number
+  * dailyTargets.fatsGrams : Number
+  --
+  * startDate : Date
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+  audit.createdBy : ObjectId <<FK -> users (NUTRITIONIST)>>
+}
 
-    TRAINING_PROGRAMS {
-        ObjectId _id PK
-        String name
-        String description
-        ObjectId authorId FK "Ref: USERS"
-    }
+entity "meal_logs" as ML {
+  * _id : ObjectId <<PK>>
+  * userId : ObjectId <<FK -> users>>
+  --
+  * loggedAt : Date
+  * mealType : Enum("BREAKFAST","LUNCH","DINNER","SNACK")
+  --
+  * nutrition.calories : Number
+  * nutrition.protein : Number
+  * nutrition.carbs : Number
+  * nutrition.fats : Number
+  nutrition.fiber : Number
+  nutrition.hydrationLiters : Number
+}
 
-    PROGRAM_VERSIONS {
-        ObjectId _id PK
-        ObjectId programId FK "Ref: TRAINING_PROGRAMS"
-        String versionNumber
-        Array weeks "Estructura del programa"
-    }
+entity "dashboard_cache" as DC {
+  * _id : ObjectId <<PK>>
+  * clientId : ObjectId <<FK -> users>>
+  --
+  * period : Enum("WEEKLY","MONTHLY")
+  * calculatedAt : Date
+  * startDate : Date
+  * endDate : Date
+  --
+  trainingMetrics.workoutsCompleted : Number
+  trainingMetrics.totalVolumeKg : Number
+  trainingMetrics.adherencePercentage : Number
+  --
+  nutritionMetrics.averageCalories : Number
+  nutritionMetrics.adherencePercentage : Number
+}
 
-    PROGRAM_ASSIGNMENTS {
-        ObjectId _id PK
-        ObjectId versionId FK "Ref: PROGRAM_VERSIONS"
-        ObjectId clientId FK "Ref: USERS"
-        Date startDate
-    }
+entity "audit_logs" as AL {
+  * _id : ObjectId <<PK>>
+  --
+  * timestamp : Date
+  * actorId : String (ref users.publicId)
+  * action : Enum("ASSIGN_PROGRAM","CREATE_PLAN",...)
+  targetId : ObjectId
+  --
+  details : Object (variable)
+  .. details.programId : ObjectId ..
+  .. details.programName : String ..
+}
 
-    DASHBOARD_CACHE {
-        ObjectId _id PK
-        ObjectId userId FK "Ref: USERS"
-        Object statistics "Métricas cacheadas"
-        Date lastComputed
-    }
+entity "roles" as R {
+  * _id : ObjectId <<PK>>
+  * publicId : String <<UK>>
+  --
+  * code : String ("client","coach")
+  * name : String
+  description : String
+  * scope : Enum("personal","team")
+  * priority : Number
+  * isSystem : Boolean
+  * status : Enum("active","inactive")
+  --
+  * permissions : Array<ObjectId> <<FK -> permissions>>
+  features : Array<String>
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+}
 
-    AUDIT_LOGS {
-        ObjectId _id PK
-        String action
-        ObjectId userId FK "Ref: USERS"
-        Object details
-        Date timestamp
-    }
+entity "permissions" as PE {
+  * _id : ObjectId <<PK>>
+  * publicId : String <<UK>>
+  --
+  * code : String ("workout.create")
+  * name : String
+  description : String
+  * module : String ("training")
+  * resource : String ("workout")
+  * action : String ("create")
+  * category : String ("execution")
+  * isSystem : Boolean
+  * status : Enum("active","inactive")
+  --
+  * audit.createdAt : Date
+  * audit.updatedAt : Date
+}
+
+entity "organizations" as ORG {
+  * _id : ObjectId <<PK>>
+  --
+  (Colección vacía — reservada
+  para gimnasios/centros
+  deportivos)
+}
+
+entity "organization_members" as OM {
+  * _id : ObjectId <<PK>>
+  --
+  (Colección vacía — reservada
+  para membresías de
+  usuarios en organizaciones)
+}
+
+entity "progress_photos" as PP {
+  * _id : ObjectId <<PK>>
+  --
+  (Colección vacía — reservada
+  para fotos de progreso
+  físico del atleta)
+}
+
+
+' ══════════════════════════════════════════════════
+' RELACIONES Y CARDINALIDADES
+' ══════════════════════════════════════════════════
+
+' --- Usuario como centro ---
+U ||--|| P : "1:1 Tiene perfil"
+U ||--o{ BM : "1:N Registra medidas"
+U ||--o{ WS : "1:N Realiza sesiones"
+U ||--o{ ML : "1:N Registra comidas"
+U ||--o{ PR : "1:N Obtiene récords"
+U ||--o{ DC : "1:N Cachea métricas"
+
+' --- Entrenador crea programas ---
+U ||--o{ TP : "1:N Crea (como Coach)"
+U ||--o{ WP : "1:N Crea rutinas"
+
+' --- Asignaciones ---
+U ||--o{ PA : "1:N Recibe asignaciones"
+TP ||--o{ PA : "1:N Se asigna via"
+
+' --- Nutricionista asigna planes ---
+U ||--o{ NP : "1:N Recibe plan nutricional"
+
+' --- Sesión registra PRs ---
+WS ||--o{ PR : "1:N Genera récords"
+
+' --- Roles y Permisos (RBAC) ---
+R ||--o{ PE : "N:M Incluye permisos"
+
+' --- Organizaciones (futuro) ---
+ORG ||--o{ OM : "1:N Tiene miembros"
+U ||--o{ OM : "1:N Pertenece a"
+
+' --- Catálogo ---
+EL ..> TP : "Referenciado por\nexercises[].exerciseId"
+EL ..> WS : "Referenciado por\nexercises[].exerciseId"
+
+@enduml
 ```
 
-## Notas sobre la Arquitectura de Datos (NoSQL)
+---
 
-Dado que HyperTrack utiliza **MongoDB**, algunas relaciones no son estrictamente referenciales como en SQL, sino que aprovechan el modelo de documentos **embebidos**:
+## Inventario Completo de Colecciones (19)
 
-1. **Sesiones de Entrenamiento (`workout_sessions`)**: Para mantener un alto rendimiento de lectura/escritura y evitar *joins* (agregaciones pesadas), los ejercicios y sus respectivas series (sets) se guardan embebidos dentro del documento de la sesión principal, referenciando solo por ID al `EXERCISE_LIBRARY`.
-2. **Macros Nutricionales**: Tanto en los planes de nutrición como en los registros diarios de comidas, los valores de macronutrientes (proteínas, carbohidratos, grasas) se almacenan como un sub-documento.
-3. **Colecciones Administrativas**: Colecciones como `audit_logs`, `permissions` y `roles` conforman la infraestructura de seguridad y trazabilidad del sistema (RBAC).
-4. **Programas y Organizaciones**: Permiten a los profesionales (entrenadores) agrupar clientes y asignarles rutinas con versiones específicas.
+| # | Colección | Documentos | Propósito |
+|---|-----------|:----------:|-----------|
+| 1 | `users` | 8 | Usuarios del sistema (atletas, coaches, nutricionistas, admin) |
+| 2 | `profiles` | 4 | Perfil detallado del usuario (identidad, físico, metas, médico) |
+| 3 | `body_measurements` | 0 | Historial de mediciones corporales (peso, circunferencias) |
+| 4 | `exercise_library` | 25 | Catálogo maestro de ejercicios (nombre, músculo, equipo) |
+| 5 | `training_programs` | 2 | Plantillas de programa creadas por coaches (con ejercicios embebidos) |
+| 6 | `workout_programs` | 8 | Rutinas personalizadas con sets/reps predefinidos |
+| 7 | `program_assignments` | 7 | Vínculo Coach → Atleta (asigna un programa a un cliente) |
+| 8 | `program_versions` | 0 | Reservada para versionado de programas (sin datos aún) |
+| 9 | `workout_sessions` | 6 | Sesiones reales de entrenamiento (lo que hizo el atleta en el gym) |
+| 10 | `personal_records` | 1 | Récords personales (PR) por ejercicio |
+| 11 | `nutrition_plans` | 1 | Planes nutricionales asignados por el nutricionista |
+| 12 | `meal_logs` | 0 | Registro diario de comidas y macros |
+| 13 | `dashboard_cache` | 10 | Caché de métricas pre-calculadas para el dashboard |
+| 14 | `audit_logs` | 1 | Bitácora de auditoría de acciones sensibles |
+| 15 | `roles` | 2 | Definición de roles del sistema (RBAC) |
+| 16 | `permissions` | 2 | Permisos granulares por módulo/recurso/acción |
+| 17 | `organizations` | 0 | Reservada para gimnasios/centros deportivos |
+| 18 | `organization_members` | 0 | Reservada para membresías en organizaciones |
+| 19 | `progress_photos` | 0 | Reservada para fotos de progreso físico |
+
+---
+
+## Resumen de Cardinalidades
+
+| Relación | Tipo | Descripción |
+|----------|:----:|-------------|
+| `users` → `profiles` | **1:1** | Cada usuario tiene exactamente un perfil |
+| `users` → `body_measurements` | **1:N** | Un usuario registra múltiples mediciones en el tiempo |
+| `users` → `workout_sessions` | **1:N** | Un usuario realiza múltiples sesiones de entrenamiento |
+| `users` → `meal_logs` | **1:N** | Un usuario registra múltiples comidas |
+| `users` → `personal_records` | **1:N** | Un usuario puede tener múltiples PRs |
+| `users` (Coach) → `training_programs` | **1:N** | Un coach crea múltiples programas |
+| `users` (Coach) → `program_assignments` | **1:N** | Un coach hace múltiples asignaciones |
+| `users` (Atleta) → `program_assignments` | **1:N** | Un atleta recibe múltiples asignaciones |
+| `training_programs` → `program_assignments` | **1:N** | Un programa se asigna a múltiples atletas |
+| `users` (Nutricionista) → `nutrition_plans` | **1:N** | Un nutricionista crea múltiples planes |
+| `users` (Atleta) → `nutrition_plans` | **1:N** | Un atleta puede tener múltiples planes (solo 1 activo) |
+| `workout_sessions` → `personal_records` | **1:N** | Una sesión puede generar múltiples PRs |
+| `roles` → `permissions` | **N:M** | Un rol incluye múltiples permisos |
+| `organizations` → `organization_members` | **1:N** | Una organización tiene múltiples miembros |
+| `users` → `dashboard_cache` | **1:N** | Un usuario tiene múltiples entradas de caché (semanal/mensual) |
+
+*(Nota: Los sub-documentos embebidos como `exercises[]` dentro de `training_programs` y `workout_sessions` no generan colecciones separadas — están anidados dentro del documento padre para optimizar la lectura en MongoDB.)*

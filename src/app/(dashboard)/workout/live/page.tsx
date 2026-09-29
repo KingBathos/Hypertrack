@@ -13,6 +13,7 @@ export default function LiveWorkoutPage() {
   const [startedAt] = useState(() => new Date().toISOString());
   const [programName, setProgramName] = useState("");
   const [isLoadingProgram, setIsLoadingProgram] = useState(true);
+  const [exerciseHistory, setExerciseHistory] = useState<Record<string, any>>({});
   
   // Timer Countdown Telemetry
   const [timeLeft, setTimeLeft] = useState(0);
@@ -62,6 +63,16 @@ export default function LiveWorkoutPage() {
     const params = new URLSearchParams(window.location.search);
     const currentMode = params.get("mode");
     
+    // Fetch history regardless of mode
+    fetch("/api/workouts/history/latest")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.history) {
+          setExerciseHistory(data.history);
+        }
+      })
+      .catch(console.error);
+
     if (currentMode === "program") {
       fetch("/api/routines/today")
         .then(res => res.json())
@@ -203,13 +214,14 @@ export default function LiveWorkoutPage() {
               <div key={exercise.id} className="animate-fade-slide-up">
                 <ExerciseBlock 
                   exeIdx={exeIdx}
-                control={control}
-                register={register}
-                startRest={startRest}
-                removeExercise={() => removeExercise(exeIdx)}
-              />
-            </div>
-          )))}
+                  control={control}
+                  register={register}
+                  startRest={startRest}
+                  removeExercise={() => removeExercise(exeIdx)}
+                  history={exerciseHistory}
+                />
+              </div>
+            )))}
 
           <button
             type="button"
@@ -264,11 +276,14 @@ export default function LiveWorkoutPage() {
   );
 }
 
-function ExerciseBlock({ exeIdx, control, register, startRest, removeExercise }: any) {
+function ExerciseBlock({ exeIdx, control, register, startRest, removeExercise, history }: any) {
   const { fields: setFields, append: appendSet, remove: removeSet } = useFieldArray({
     control,
     name: `exercises.${exeIdx}.sets`
   });
+
+  const currentName = useWatch({ control, name: `exercises.${exeIdx}.exerciseName` });
+  const exeHistory = currentName && history ? history[currentName.trim().toLowerCase()] : null;
 
   return (
     <div className="brutalist-card p-6 relative group transition-all">
@@ -281,11 +296,20 @@ function ExerciseBlock({ exeIdx, control, register, startRest, removeExercise }:
         ✕ ELIMINAR
       </button>
 
-      <input 
-        {...register(`exercises.${exeIdx}.exerciseName`)}
-        className="w-full bg-transparent text-3xl font-heading font-black text-white placeholder-zinc-800 focus:outline-none mb-6 border-b-2 border-zinc-800 focus:border-red-600 pb-2 transition-colors pr-24 uppercase"
-        placeholder="EJ: PRESS DE BANCA PLANO"
-      />
+      <div className="mb-6">
+        <input 
+          {...register(`exercises.${exeIdx}.exerciseName`)}
+          className="w-full bg-transparent text-3xl font-heading font-black text-white placeholder-zinc-800 focus:outline-none border-b-2 border-zinc-800 focus:border-red-600 pb-2 transition-colors pr-24 uppercase"
+          placeholder="EJ: PRESS DE BANCA PLANO"
+        />
+        {exeHistory && (
+          <div className="text-xs text-zinc-500 font-mono mt-2 uppercase tracking-widest flex items-center gap-2">
+            <svg className="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            ÚLTIMA VEZ: <span className="text-zinc-300 font-bold">{exeHistory.weight}KG × {exeHistory.reps}</span> 
+            <span className="text-[9px]">({new Date(exeHistory.date).toLocaleDateString("es-ES", { day: '2-digit', month: 'short' })})</span>
+          </div>
+        )}
+      </div>
 
       <div className="space-y-3">
         <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-2 sm:gap-3 px-2 text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest font-black">

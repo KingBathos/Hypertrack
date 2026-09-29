@@ -1,0 +1,354 @@
+{
+  "exercise_library": {
+    "count": 25,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"exe_EEEB325ADE37F99D302278D51A\"",
+      "name": "string: \"Press de Banca Plano con Barra\"",
+      "primaryMuscle": "string: \"CHEST\"",
+      "mechanic": "string: \"COMPOUND\"",
+      "equipment": "string: \"BARBELL\"",
+      "status": "string: \"ACTIVE\"",
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date"
+      }
+    }
+  },
+  "workout_programs": {
+    "count": 8,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "name": "string: \"Empuje (Pecho/Hombro/Tríceps) - PRO\"",
+      "authorId": "string: \"usr_01KWWW3V5FKXTE5RHBYETF47KW\"",
+      "clientId": "string: \"usr_01KWWW3V5FKXTE5RHBYETF47KW\"",
+      "status": "string: \"ACTIVE\"",
+      "assignedDays": "Array<string>: ejemplo=\"WEDNESDAY\"",
+      "exercises": [
+        "Array<Object>",
+        {
+          "exerciseName": "string: \"Press de Banca Plano\"",
+          "sets": [
+            "Array<Object>",
+            {
+              "setNumber": "number: 1",
+              "reps": "number: 8",
+              "weight": "number: 80",
+              "unit": "string: \"KG\""
+            }
+          ]
+        }
+      ],
+      "createdAt": "Date",
+      "updatedAt": "Date"
+    }
+  },
+  "program_versions": {
+    "count": 0,
+    "sampleKeys": "(vacía)"
+  },
+  "body_measurements": {
+    "count": 0,
+    "sampleKeys": "(vacía)"
+  },
+  "dashboard_cache": {
+    "count": 10,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "period": "string: \"WEEKLY\"",
+      "clientId": "BSON:ObjectId",
+      "calculatedAt": "Date",
+      "endDate": "Date",
+      "nutritionMetrics": {
+        "averageCalories": "number: 0",
+        "adherencePercentage": "number: 0"
+      },
+      "startDate": "Date",
+      "trainingMetrics": {
+        "workoutsCompleted": "number: 0",
+        "totalVolumeKg": "number: 0",
+        "adherencePercentage": "number: 0"
+      }
+    }
+  },
+  "audit_logs": {
+    "count": 1,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "timestamp": "Date",
+      "actorId": "string: \"usr_01KXGN69F7G18TZ58EAGZCREYE\"",
+      "action": "string: \"ASSIGN_PROGRAM\"",
+      "targetId": "BSON:ObjectId",
+      "details": {
+        "programId": "BSON:ObjectId",
+        "programName": "string: \"EJECUTOR\""
+      }
+    }
+  },
+  "permissions": {
+    "count": 2,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"per_01HTW8B3V1R4T9X2M7K5P9J6F1\"",
+      "code": "string: \"workout.create\"",
+      "name": "string: \"Crear Entrenamiento\"",
+      "description": "string: \"Permite registrar una nueva sesión de entrenamiento.\"",
+      "module": "string: \"training\"",
+      "resource": "string: \"workout\"",
+      "action": "string: \"create\"",
+      "category": "string: \"execution\"",
+      "isSystem": "boolean: true",
+      "status": "string: \"active\"",
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date"
+      }
+    }
+  },
+  "roles": {
+    "count": 2,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"rol_01HTW8E5P3M9R4X2T7K1V8J6F3\"",
+      "code": "string: \"client\"",
+      "name": "string: \"Cliente\"",
+      "description": "string: \"Usuario estándar que registra entrenamientos y medidas.\"",
+      "scope": "string: \"personal\"",
+      "priority": "number: 100",
+      "isSystem": "boolean: true",
+      "status": "string: \"active\"",
+      "permissions": [
+        "Array<Object>",
+        {
+          "buffer": "Binary/ObjectId"
+        }
+      ],
+      "features": "Array<string>: ejemplo=\"training_execution\"",
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date"
+      }
+    }
+  },
+  "users": {
+    "count": 8,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"usr_01KWWW3V5FKXTE5RHBYETF47KW\"",
+      "email": {
+        "value": "string: \"testuser@example.com\"",
+        "normalized": "string: \"testuser@example.com\"",
+        "verified": "boolean: false",
+        "verifiedAt": "null"
+      },
+      "authentication": {
+        "passwordHash": "string: \"$argon2id$v=19$m=65536,t=3,p=4$8J5uZIGvO6JddxUxqUevkA$KFqC5",
+        "algorithm": "string: \"argon2id\"",
+        "failedAttempts": "number: 0",
+        "lockedUntil": "null"
+      },
+      "account": {
+        "status": "string: \"PENDING_VERIFICATION\"",
+        "language": "string: \"es-PE\"",
+        "timezone": "string: \"America/Lima\""
+      },
+      "metadata": {
+        "schemaVersion": "number: 1",
+        "source": "string: \"web\""
+      },
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "lastLoginAt": "null"
+      },
+      "role": "string: \"NUTRITIONIST\""
+    }
+  },
+  "progress_photos": {
+    "count": 0,
+    "sampleKeys": "(vacía)"
+  },
+  "organization_members": {
+    "count": 0,
+    "sampleKeys": "(vacía)"
+  },
+  "organizations": {
+    "count": 0,
+    "sampleKeys": "(vacía)"
+  },
+  "meal_logs": {
+    "count": 0,
+    "sampleKeys": "(vacía)"
+  },
+  "program_assignments": {
+    "count": 7,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"asn_33346B63CDB4688BDEAACDAECC\"",
+      "clientId": "BSON:ObjectId",
+      "coachId": "BSON:ObjectId",
+      "programVersionId": "BSON:ObjectId",
+      "status": "string: \"COMPLETED\"",
+      "startDate": "Date",
+      "audit": {
+        "createdAt": "Date",
+        "createdBy": "BSON:ObjectId",
+        "updatedAt": "Date"
+      },
+      "endDate": "Date"
+    }
+  },
+  "nutrition_plans": {
+    "count": 1,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"nut_01KX265HFPDZN1EZ01DH18PJRS\"",
+      "clientId": "BSON:ObjectId",
+      "status": "string: \"ACTIVE\"",
+      "dailyTargets": {
+        "calories": "number: 2000",
+        "proteinGrams": "number: 150",
+        "carbsGrams": "number: 200",
+        "fatsGrams": "number: 65"
+      },
+      "startDate": "Date",
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "createdBy": "BSON:ObjectId"
+      }
+    }
+  },
+  "training_programs": {
+    "count": 2,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"prg_846F369F3C46EE7A7519196F73\"",
+      "authorId": "BSON:ObjectId",
+      "name": "string: \"EJECUTOR\"",
+      "description": "string: \"Programa creado en portal\"",
+      "goal": "string: \"HYPERTROPHY\"",
+      "level": "string: \"INTERMEDIATE\"",
+      "status": "string: \"ACTIVE\"",
+      "exercises": [
+        "Array<Object>",
+        {
+          "order": "number: 0",
+          "exerciseId": "string: \"exe_EE10130B15441B67156530EB18\"",
+          "exerciseName": "string: \"Dominadas\"",
+          "targetSets": "number: 3",
+          "targetReps": "number: 10",
+          "targetRpe": "number: 8",
+          "restSeconds": "number: 90"
+        }
+      ],
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date",
+        "createdBy": "BSON:ObjectId"
+      }
+    }
+  },
+  "workout_sessions": {
+    "count": 6,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "publicId": "string: \"ses_962BD4CEC50DF4EB1D2678947B\"",
+      "clientId": "BSON:ObjectId",
+      "status": "string: \"COMPLETED\"",
+      "type": "string: \"FREE\"",
+      "name": "string: \"Entrenamiento Libre - 10 jul\"",
+      "exercises": [
+        "Array<Object>",
+        {
+          "exerciseId": "BSON:ObjectId",
+          "order": "number: 1",
+          "exerciseName": "string: \"Remo\"",
+          "sets": [
+            "Array<Object>",
+            {
+              "setNumber": "number: 1",
+              "setType": "string: \"WORKING\"",
+              "reps": "number: 12",
+              "weight": "number: 10",
+              "completed": "boolean: true",
+              "unit": "string: \"KG\"",
+              "rpe": "number: 2"
+            }
+          ]
+        }
+      ],
+      "startedAt": "Date",
+      "finishedAt": "Date",
+      "durationMinutes": "number: 1",
+      "metadata": {
+        "schemaVersion": "number: 1",
+        "source": "string: \"web\""
+      },
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date"
+      }
+    }
+  },
+  "personal_records": {
+    "count": 1,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "clientId": "BSON:ObjectId",
+      "exerciseId": "string: \"PRESS INCLINADO\"",
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date"
+      },
+      "dateAchieved": "Date",
+      "estimated1RM": "number: 15.033333333333333",
+      "exerciseName": "string: \"PRESS INCLINADO\"",
+      "maxWeight": "string: \"11\"",
+      "maxWeightReps": "string: \"11\"",
+      "maxWeightUnit": "string: \"KG\"",
+      "workoutSessionId": "BSON:ObjectId"
+    }
+  },
+  "profiles": {
+    "count": 4,
+    "sampleKeys": {
+      "_id": "BSON:ObjectId",
+      "userId": "BSON:ObjectId",
+      "publicId": "string: \"prf_01KWWW4Y0XX1QW6VQMYQWQNJDJ\"",
+      "identity": {
+        "firstName": "string: \"Noxxvoid\"",
+        "lastName": "string: \"Bathos\"",
+        "displayName": "string: \"Noxxvoid Bathos\""
+      },
+      "contact": {
+        "phone": "string: \"+51932718710\"",
+        "country": "string: \"PE\""
+      },
+      "demographics": {
+        "birthDate": "Date",
+        "sex": "string: \"MALE\""
+      },
+      "physical": {
+        "heightCm": "number: 170"
+      },
+      "goals": {
+        "primaryGoal": "string: \"STRENGTH\""
+      },
+      "preferences": {
+        "measurementSystem": "string: \"METRIC\""
+      },
+      "medical": {
+        "injuries": "Array<empty>",
+        "allergies": "Array<empty>"
+      },
+      "metadata": {
+        "schemaVersion": "number: 1"
+      },
+      "audit": {
+        "createdAt": "Date",
+        "updatedAt": "Date"
+      }
+    }
+  }
+}
