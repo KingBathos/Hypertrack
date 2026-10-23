@@ -316,11 +316,11 @@ export default async function AssignProgramPage({ params }: { params: Promise<{ 
                     </div>
                     
                     <div className="flex items-center gap-4 text-right shrink-0">
-                      <div className="bg-black p-3 border-2 border-zinc-800 text-center min-w-[110px]">
+                      <div className="bg-black p-3 border-2 border-zinc-800 text-center min-w-28">
                         <div className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">VOLUMEN</div>
                         <div className="text-xl font-black text-red-600">{Math.round(sessionVolume).toLocaleString()} <span className="text-xs font-bold text-zinc-500">KG</span></div>
                       </div>
-                      <div className="bg-black p-3 border-2 border-zinc-800 text-center min-w-[90px]">
+                      <div className="bg-black p-3 border-2 border-zinc-800 text-center min-w-24">
                         <div className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">DURACIÓN</div>
                         <div className="text-xl font-black text-white">{sessionLog.durationMinutes || "--"} <span className="text-xs font-bold text-zinc-500">MIN</span></div>
                       </div>
