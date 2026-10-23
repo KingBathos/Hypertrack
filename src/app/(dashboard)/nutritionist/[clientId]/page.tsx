@@ -7,6 +7,7 @@ import WeightChart from "@/components/telemetry/WeightChart";
 import { MacroRadialChart, MacroStackedChart } from "@/components/telemetry/NutritionCharts";
 import { ACTIVITY_LEVEL_LABELS, ACTIVITY_MULTIPLIERS, TRAINING_EXPERIENCE_LABELS, TRAINING_PHASE_LABELS, STRESS_LEVEL_LABELS } from "@/lib/schemas/profile.schema";
 import type { ActivityLevel } from "@/lib/schemas/profile.schema";
+import { analyzeTrainingLoad } from "@/lib/domain/trainingLoad";
 
 function getMealTypeBadge(type: string) {
   const norm = (type || "").toLowerCase();
@@ -220,7 +221,7 @@ export default async function NutritionistClientPage({ params }: { params: Promi
   ];
 
   // ─────────────────────────────────────────────
-  // 5. Workout Stats (recent sessions)
+  // 5. Workout Stats & Training Load Telemetry
   // ─────────────────────────────────────────────
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -232,10 +233,31 @@ export default async function NutritionistClientPage({ params }: { params: Promi
       { clientId: client.publicId }
     ],
     startedAt: { $gte: thirtyDaysAgo }
-  }).sort({ startedAt: -1 }).limit(20).toArray();
+  }).sort({ startedAt: -1 }).limit(30).toArray();
+
+  const athleteWeightForLoad = currentWeight > 0 ? currentWeight : (profileWeight > 0 ? profileWeight : 75);
+  const trainingLoad = analyzeTrainingLoad(recentWorkouts as any, athleteWeightForLoad);
+
+  const suggestedCalories = tdee > 0
+    ? (trainingLoad.intensityLevel === "HEAVY" ? tdee + 350 : trainingLoad.intensityLevel === "LIGHT" ? tdee - 250 : tdee)
+    : (trainingLoad.intensityLevel === "HEAVY" ? 2800 : trainingLoad.intensityLevel === "LIGHT" ? 2100 : 2500);
+
+  const suggestedProtein = Math.round(athleteWeightForLoad * trainingLoad.nutritionalPrescription.suggestedProteinPerKg);
+  const suggestedCarbs = Math.round(athleteWeightForLoad * trainingLoad.nutritionalPrescription.suggestedCarbsPerKg);
+  const suggestedFats = Math.round((suggestedCalories * (trainingLoad.nutritionalPrescription.suggestedFatPercent / 100)) / 9);
 
   const totalSessions = recentWorkouts.length;
-  const totalVolume = recentWorkouts.reduce((sum, w) => sum + (w.totalVolume || 0), 0);
+  const totalVolume = recentWorkouts.reduce((sum, w) => {
+    let vol = w.totalVolume || 0;
+    if (vol === 0 && w.exercises) {
+      w.exercises.forEach((ex: any) => {
+        ex.sets?.forEach((s: any) => {
+          if (!s.isWarmup) vol += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+        });
+      });
+    }
+    return sum + vol;
+  }, 0);
   const totalPRs = recentWorkouts.reduce((sum, w) => sum + (w.prsBroken || 0), 0);
 
   // ─────────────────────────────────────────────
@@ -551,19 +573,139 @@ export default async function NutritionistClientPage({ params }: { params: Promi
         </div>
       </section>
 
-      {/* ── WORKOUT STATS ROW (Cross-domain) ── */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-zinc-950 border-2 border-zinc-800 p-5 text-center">
-          <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">SESIONES (30D)</p>
-          <p className="text-4xl font-black text-white">{totalSessions}</p>
+      {/* ── TELEMETRÍA DE ENTRENAMIENTO Y DEMANDA METABÓLICA ── */}
+      <section className="mb-10 brutalist-card p-6 border-2 relative overflow-hidden">
+        {/* Header con Indicador de Intensidad */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b-2 border-zinc-800 pb-5 mb-6">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏋️‍♂️</span>
+              <h2 className="text-2xl sm:text-3xl font-heading font-black text-white uppercase tracking-wider">
+                CARGA DE ENTRENAMIENTO // DEMANDA METABÓLICA
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-zinc-400 font-mono mt-1">
+              Telemetría deportiva cruzada para calibrar el volumen calórico, ingesta glucogénica y balance nitrogenado.
+            </p>
+          </div>
+
+          {/* Badge Dinámico de Carga */}
+          <div className={`px-5 py-3 border-2 ${trainingLoad.intensityBorder} ${trainingLoad.intensityBg} flex items-center gap-3 shrink-0`}>
+            <div className={`h-3 w-3 rounded-full ${trainingLoad.intensityLevel === 'HEAVY' ? 'bg-red-500 animate-ping' : trainingLoad.intensityLevel === 'MODERATE' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+            <div>
+              <p className="text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-widest">ESTADO DETECTADO</p>
+              <p className={`text-base sm:text-lg font-heading font-black uppercase ${trainingLoad.intensityColor}`}>
+                {trainingLoad.intensityLabel}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="bg-zinc-950 border-2 border-zinc-800 p-5 text-center">
-          <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">VOLUMEN TOTAL (30D)</p>
-          <p className="text-4xl font-black text-white">{totalVolume > 0 ? `${(totalVolume / 1000).toFixed(1)}T` : "—"}</p>
+
+        {/* Grid de Métricas Deportivas Reales */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          <div className="bg-black border border-zinc-800 p-3 text-center">
+            <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">FRECUENCIA (7D)</p>
+            <p className="text-2xl font-black text-white">
+              {trainingLoad.sessionsLast7Days} <span className="text-xs text-zinc-500 font-normal">SES/SEM</span>
+            </p>
+            <p className="text-[9px] text-zinc-600 font-mono mt-0.5">{trainingLoad.sessionsLast30Days} en los últimos 30 días</p>
+          </div>
+
+          <div className="bg-black border border-zinc-800 p-3 text-center">
+            <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">VOLUMEN SEMANAL</p>
+            <p className="text-2xl font-black text-white">
+              {trainingLoad.weeklyVolumeKg > 0 ? `${(trainingLoad.weeklyVolumeKg / 1000).toFixed(1)}T` : "0T"}
+            </p>
+            <p className="text-[9px] text-zinc-600 font-mono mt-0.5">{trainingLoad.weeklyVolumeKg.toLocaleString()} KG levantados</p>
+          </div>
+
+          <div className="bg-black border border-zinc-800 p-3 text-center">
+            <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">VOLUMEN / SESIÓN</p>
+            <p className="text-2xl font-black text-white">
+              {trainingLoad.avgSessionVolumeKg.toLocaleString()} <span className="text-xs text-zinc-500 font-normal">KG</span>
+            </p>
+            <p className="text-[9px] text-zinc-600 font-mono mt-0.5">Promedio por sesión</p>
+          </div>
+
+          <div className="bg-black border border-zinc-800 p-3 text-center">
+            <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">INTENSIDAD (RPE)</p>
+            <p className={`text-2xl font-black ${trainingLoad.avgRpe >= 8.5 ? 'text-red-500' : trainingLoad.avgRpe >= 7.5 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {trainingLoad.avgRpe} <span className="text-xs text-zinc-500 font-normal">/ 10</span>
+            </p>
+            <p className="text-[9px] text-zinc-600 font-mono mt-0.5">Esfuerzo percibido</p>
+          </div>
+
+          <div className="bg-black border border-zinc-800 p-3 text-center col-span-2 sm:col-span-1">
+            <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">DURACIÓN MEDIA</p>
+            <p className="text-2xl font-black text-white">
+              {trainingLoad.avgDurationMinutes} <span className="text-xs text-zinc-500 font-normal">MIN</span>
+            </p>
+            <p className="text-[9px] text-zinc-600 font-mono mt-0.5">{totalPRs} PRs rotos en 30d</p>
+          </div>
         </div>
-        <div className="bg-zinc-950 border-2 border-zinc-800 p-5 text-center">
-          <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">PRs ROTOS (30D)</p>
-          <p className={`text-4xl font-black ${totalPRs > 0 ? 'text-yellow-500' : 'text-zinc-600'}`}>{totalPRs}</p>
+
+        {/* Panel de Guía Clínica para el Nutricionista */}
+        <div className="bg-black border-2 border-zinc-800 p-5 space-y-4">
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-red-500 uppercase tracking-widest">
+            <span>⚡</span>
+            <span>PRESCRIPCIÓN NUTRICIONAL RECOMENDADA SEGÚN LA CARGA DE ENTRENAMIENTO</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-zinc-950 p-4 border border-zinc-800/80">
+              <p className="text-[10px] font-mono font-bold text-yellow-500 uppercase tracking-widest mb-1">
+                🍚 ESTRATEGIA DE CARBOHIDRATOS (GLUCÓGENO)
+              </p>
+              <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+                {trainingLoad.nutritionalPrescription.carbStrategy}
+              </p>
+            </div>
+
+            <div className="bg-zinc-950 p-4 border border-zinc-800/80">
+              <p className="text-[10px] font-mono font-bold text-red-400 uppercase tracking-widest mb-1">
+                🥩 ESTRATEGIA PROTEICA (SÍNTESIS MIOFIBRILAR)
+              </p>
+              <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+                {trainingLoad.nutritionalPrescription.proteinStrategy}
+              </p>
+            </div>
+
+            <div className="bg-zinc-950 p-4 border border-zinc-800/80">
+              <p className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-widest mb-1">
+                💧 HIDRATACIÓN Y BALANCE HÍDRICO
+              </p>
+              <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+                {trainingLoad.nutritionalPrescription.hydrationStrategy}
+              </p>
+            </div>
+          </div>
+
+          {/* Banner de Macros Sugeridos Calculados */}
+          <div className="p-4 bg-zinc-900 border border-zinc-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                🎯 PROTOCOLO SUGERIDO AUTOMÁTICAMENTE PARA ESTE ATLETA ({athleteWeightForLoad} KG):
+              </p>
+              <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                {trainingLoad.nutritionalPrescription.summary}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <span className="bg-black border border-zinc-700 px-3 py-1.5 text-xs font-mono font-black text-white">
+                {suggestedCalories} <span className="text-zinc-500 text-[10px]">KCAL</span>
+              </span>
+              <span className="bg-black border border-red-800/60 px-3 py-1.5 text-xs font-mono font-black text-red-400">
+                {suggestedProtein}g <span className="text-zinc-500 text-[10px]">PRO</span>
+              </span>
+              <span className="bg-black border border-yellow-800/60 px-3 py-1.5 text-xs font-mono font-black text-yellow-400">
+                {suggestedCarbs}g <span className="text-zinc-500 text-[10px]">CARB</span>
+              </span>
+              <span className="bg-black border border-indigo-800/60 px-3 py-1.5 text-xs font-mono font-black text-indigo-400">
+                {suggestedFats}g <span className="text-zinc-500 text-[10px]">GRASA</span>
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -716,6 +858,35 @@ export default async function NutritionistClientPage({ params }: { params: Promi
         </h2>
         <div className="brutalist-card p-6 md:p-10">
           <form action={setNutritionProtocol.bind(null, resolvedParams.clientId)} className="space-y-8">
+            {/* Banner de Calibración por Carga de Entrenamiento */}
+            <div className={`p-4 border-2 ${trainingLoad.intensityBorder} ${trainingLoad.intensityBg} flex flex-col sm:flex-row items-center justify-between gap-3`}>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+                <div>
+                  <p className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                    CALIBRACIÓN SUGERIDA: <span className={trainingLoad.intensityColor}>{trainingLoad.intensityLabel}</span>
+                  </p>
+                  <p className="text-[10px] text-zinc-400 font-mono">
+                    Valores adaptados al volumen y RPE de este atleta ({athleteWeightForLoad} kg).
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-black/80 border border-zinc-700 px-2.5 py-1 text-xs font-mono font-bold text-white">
+                  {suggestedCalories} kcal
+                </span>
+                <span className="bg-black/80 border border-red-700/60 px-2.5 py-1 text-xs font-mono font-bold text-red-400">
+                  {suggestedProtein}g P
+                </span>
+                <span className="bg-black/80 border border-yellow-700/60 px-2.5 py-1 text-xs font-mono font-bold text-yellow-400">
+                  {suggestedCarbs}g C
+                </span>
+                <span className="bg-black/80 border border-indigo-700/60 px-2.5 py-1 text-xs font-mono font-bold text-indigo-400">
+                  {suggestedFats}g G
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-4">
               <label className="block text-sm font-black text-white uppercase tracking-widest">
                 CALORÍAS DIARIAS TOTALES (KCAL)
@@ -724,8 +895,8 @@ export default async function NutritionistClientPage({ params }: { params: Promi
                 name="dailyCalories"
                 type="number"
                 required
-                defaultValue={activePlan ? planCalories : undefined}
-                placeholder={`EJ. ${tdee > 0 ? tdee : 2500}`}
+                defaultValue={activePlan ? planCalories : suggestedCalories}
+                placeholder={`EJ. ${suggestedCalories}`}
                 className="w-full bg-black border-2 border-zinc-800 px-4 py-4 text-3xl font-black text-white focus:outline-none focus:border-red-600 transition-all text-center"
               />
               {tdee > 0 && (
@@ -745,13 +916,13 @@ export default async function NutritionistClientPage({ params }: { params: Promi
                   name="protein"
                   type="number"
                   required
-                  defaultValue={activePlan ? planProtein : undefined}
-                  placeholder={profileWeight > 0 ? `SUG: ${Math.round(profileWeight * 2)}` : "0"}
+                  defaultValue={activePlan ? planProtein : suggestedProtein}
+                  placeholder={`SUG: ${suggestedProtein}`}
                   className="w-full bg-zinc-900 border-2 border-zinc-800 px-4 py-4 text-2xl font-black text-white focus:outline-none focus:border-red-600 transition-all text-center"
                 />
-                {profileWeight > 0 && (
-                  <p className="text-[9px] text-zinc-600 font-mono font-bold text-center uppercase">
-                    RECOMENDADO: {Math.round(profileWeight * 1.8)} - {Math.round(profileWeight * 2.2)}g
+                {athleteWeightForLoad > 0 && (
+                  <p className="text-[9px] text-zinc-500 font-mono font-bold text-center uppercase">
+                    SUGERIDO: {suggestedProtein}g ({trainingLoad.nutritionalPrescription.suggestedProteinPerKg} g/kg)
                   </p>
                 )}
               </div>
@@ -763,10 +934,15 @@ export default async function NutritionistClientPage({ params }: { params: Promi
                   name="carbs"
                   type="number"
                   required
-                  defaultValue={activePlan ? planCarbs : undefined}
-                  placeholder="0"
+                  defaultValue={activePlan ? planCarbs : suggestedCarbs}
+                  placeholder={`SUG: ${suggestedCarbs}`}
                   className="w-full bg-zinc-900 border-2 border-zinc-800 px-4 py-4 text-2xl font-black text-white focus:outline-none focus:border-red-600 transition-all text-center"
                 />
+                {athleteWeightForLoad > 0 && (
+                  <p className="text-[9px] text-zinc-500 font-mono font-bold text-center uppercase">
+                    SUGERIDO: {suggestedCarbs}g ({trainingLoad.nutritionalPrescription.suggestedCarbsPerKg} g/kg)
+                  </p>
+                )}
               </div>
               <div className="space-y-3">
                 <label className="block text-[10px] font-mono font-bold text-indigo-500 uppercase tracking-widest">
@@ -776,10 +952,13 @@ export default async function NutritionistClientPage({ params }: { params: Promi
                   name="fats"
                   type="number"
                   required
-                  defaultValue={activePlan ? planFats : undefined}
-                  placeholder="0"
+                  defaultValue={activePlan ? planFats : suggestedFats}
+                  placeholder={`SUG: ${suggestedFats}`}
                   className="w-full bg-zinc-900 border-2 border-zinc-800 px-4 py-4 text-2xl font-black text-white focus:outline-none focus:border-red-600 transition-all text-center"
                 />
+                <p className="text-[9px] text-zinc-500 font-mono font-bold text-center uppercase">
+                  SUGERIDO: {suggestedFats}g ({trainingLoad.nutritionalPrescription.suggestedFatPercent}% VCT)
+                </p>
               </div>
             </div>
 
