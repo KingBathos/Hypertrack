@@ -6,11 +6,21 @@ import { LogoutButton } from "@/components/ui/logout-button";
 export async function Navbar() {
   const session = await getSession();
 
+  const homeHref = !session
+    ? "/login"
+    : session.role === "COACH"
+    ? "/coach"
+    : session.role === "NUTRITIONIST"
+    ? "/nutritionist"
+    : session.role === "ADMIN"
+    ? "/admin"
+    : "/dashboard";
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b-4 border-zinc-900 bg-black">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="transition-transform active:scale-95">
+          <Link href={homeHref} className="transition-transform active:scale-95" title="HyperTrack Home">
             <Logo size="sm" />
           </Link>
           
@@ -40,25 +50,33 @@ export async function Navbar() {
               )}
 
               {session.role === "COACH" && (
-                <Link
-                  href="/coach"
-                  className="bg-transparent border-b-2 border-transparent hover:border-red-600 hover:bg-white hover:text-black transition-none uppercase font-bold text-red-500 px-3 py-2 text-sm tracking-widest"
-                >
-                  Modo Coach
-                </Link>
+                <>
+                  <Link
+                    href="/coach"
+                    className="bg-transparent border-b-2 border-transparent hover:border-red-600 hover:bg-white hover:text-black transition-none uppercase font-bold text-zinc-400 px-3 py-2 text-sm tracking-widest"
+                  >
+                    Roster Atletas
+                  </Link>
+                  <Link
+                    href="/coach/programs/new"
+                    className="bg-transparent border-b-2 border-transparent hover:border-red-600 hover:bg-white hover:text-black transition-none uppercase font-bold text-zinc-400 px-3 py-2 text-sm tracking-widest"
+                  >
+                    Crear Programa
+                  </Link>
+                </>
               )}
               {session.role === "NUTRITIONIST" && (
                 <Link
                   href="/nutritionist"
-                  className="bg-transparent border-b-2 border-transparent hover:border-red-600 hover:bg-white hover:text-black transition-none uppercase font-bold text-red-500 px-3 py-2 text-sm tracking-widest"
+                  className="bg-transparent border-b-2 border-transparent hover:border-red-600 hover:bg-white hover:text-black transition-none uppercase font-bold text-zinc-400 px-3 py-2 text-sm tracking-widest"
                 >
-                  Nutricionista
+                  Pacientes
                 </Link>
               )}
               {session.role === "ADMIN" && (
                 <Link
                   href="/admin"
-                  className="bg-transparent border-b-2 border-transparent hover:border-red-600 hover:bg-white hover:text-black transition-none uppercase font-bold text-red-500 px-3 py-2 text-sm tracking-widest"
+                  className="bg-transparent border-b-2 border-transparent hover:border-red-600 hover:bg-white hover:text-black transition-none uppercase font-bold text-zinc-400 px-3 py-2 text-sm tracking-widest"
                 >
                   Admin
                 </Link>
@@ -69,9 +87,6 @@ export async function Navbar() {
 
         {session ? (
           <div className="flex items-center gap-4">
-            <span className="hidden md:inline-block text-xs font-mono font-bold uppercase tracking-widest text-zinc-500">
-              ATLETA ACTIVO
-            </span>
             <LogoutButton variant="icon" />
           </div>
         ) : (

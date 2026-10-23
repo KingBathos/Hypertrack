@@ -306,6 +306,22 @@ export async function logWorkoutSession(data: {
     );
   }
 
+  // === COMPLETAR PROGRAMA ACTIVO ===
+  // Si la sesión fue de tipo PROGRAM, marcar la asignación como completada
+  // para que no siga apareciendo como activa en el dashboard
+  if (data.type === "PROGRAM") {
+    await db.collection("program_assignments").updateOne(
+      { clientId: user._id, status: "ACTIVE" },
+      {
+        $set: {
+          status: "COMPLETED",
+          endDate: new Date(),
+          "audit.updatedAt": new Date(),
+        },
+      }
+    );
+  }
+
   // === GAMIFICACIÓN (SUBIR DE NIVEL) ===
   // Calcular volumen total para XP
   let totalVolume = 0;
