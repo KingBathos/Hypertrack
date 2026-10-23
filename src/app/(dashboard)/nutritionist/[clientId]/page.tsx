@@ -2,10 +2,25 @@ import { setNutritionProtocol } from "./actions";
 import { getDb } from "@/lib/db/mongodb";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import Link from "next/link";
 import WeightChart from "@/components/telemetry/WeightChart";
 import { MacroRadialChart, MacroStackedChart } from "@/components/telemetry/NutritionCharts";
 import { ACTIVITY_LEVEL_LABELS, ACTIVITY_MULTIPLIERS, TRAINING_EXPERIENCE_LABELS, TRAINING_PHASE_LABELS, STRESS_LEVEL_LABELS } from "@/lib/schemas/profile.schema";
 import type { ActivityLevel } from "@/lib/schemas/profile.schema";
+
+function getMealTypeBadge(type: string) {
+  const norm = (type || "").toLowerCase();
+  if (norm.includes("desayuno") || norm.includes("breakfast")) {
+    return { label: "DESAYUNO", color: "bg-amber-500/10 text-amber-400 border-amber-500/30" };
+  }
+  if (norm.includes("almuerzo") || norm.includes("lunch")) {
+    return { label: "ALMUERZO", color: "bg-red-500/10 text-red-400 border-red-500/30" };
+  }
+  if (norm.includes("cena") || norm.includes("dinner")) {
+    return { label: "CENA", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30" };
+  }
+  return { label: (type || "SNACK").toUpperCase(), color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" };
+}
 
 export default async function NutritionistClientPage({ params }: { params: Promise<{ clientId: string }> }) {
   const session = await getSession();
@@ -132,21 +147,29 @@ export default async function NutritionistClientPage({ params }: { params: Promi
     : null;
 
   // ─────────────────────────────────────────────
-  // 4. Meal Logs — Last 7 days (macro adherence + detailed meals)
+  // 4. Meal Logs — HISTORIAL COMPLETO DEL ATLETA
+  // Buscamos todas las comidas asociadas al usuario (client._id y client.publicId)
+  // El historial pertenece al ATLETA y persiste aunque cambie de nutricionista.
   // ─────────────────────────────────────────────
+  const allMealLogs = await db.collection("meal_logs").find({
+    $or: [
+      { userId: client._id },
+      { userId: client.publicId },
+      { clientId: client._id },
+      { clientId: client.publicId }
+    ]
+  }).sort({ date: -1, loggedAt: -1, "audit.createdAt": -1 }).toArray();
+
+  // Filtrar comidas de los últimos 7 días para las gráficas de adherencia semanal
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const recentMeals = await db.collection("meal_logs").find({
-    userId: client._id,
-    $or: [
-      { loggedAt: { $gte: sevenDaysAgo } },
-      { date: { $gte: sevenDaysAgo } },
-      { "audit.createdAt": { $gte: sevenDaysAgo } }
-    ]
-  }).sort({ loggedAt: -1, date: -1, "audit.createdAt": -1 }).limit(50).toArray();
+  const recentMeals = allMealLogs.filter(meal => {
+    const mealDate = meal.date || meal.loggedAt || meal.audit?.createdAt;
+    return mealDate && new Date(mealDate) >= sevenDaysAgo;
+  });
 
-  // Compute daily macro totals for the chart
+  // Compute daily macro totals for the chart (últimos 7 días)
   const dailyMap = new Map<string, { protein: number; carbs: number; fats: number; calories: number }>();
   recentMeals.forEach(meal => {
     const mealDate = meal.loggedAt || meal.date || meal.audit?.createdAt;
@@ -203,32 +226,109 @@ export default async function NutritionistClientPage({ params }: { params: Promi
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const recentWorkouts = await db.collection("workout_sessions").find({
-    clientId: client._id,
-    "audit.createdAt": { $gte: thirtyDaysAgo }
-  }).sort({ "audit.createdAt": -1 }).limit(20).toArray();
+    $or: [
+      { clientId: client._id },
+      { userId: client.publicId },
+      { clientId: client.publicId }
+    ],
+    startedAt: { $gte: thirtyDaysAgo }
+  }).sort({ startedAt: -1 }).limit(20).toArray();
 
   const totalSessions = recentWorkouts.length;
   const totalVolume = recentWorkouts.reduce((sum, w) => sum + (w.totalVolume || 0), 0);
   const totalPRs = recentWorkouts.reduce((sum, w) => sum + (w.prsBroken || 0), 0);
 
   // ─────────────────────────────────────────────
-  // 6. Serialize meal logs for display table
+  // 6. Agrupación por días para el Historial Completo
   // ─────────────────────────────────────────────
-  const mealLogRows = recentMeals.slice(0, 20).map(meal => ({
-    date: new Date(meal.loggedAt || meal.date || meal.audit?.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
-    type: meal.mealType || meal.type || "—",
-    food: meal.foodName || meal.name || meal.food || "—",
-    calories: meal.calories || meal.nutrition?.calories || 0,
-    protein: meal.macros?.protein || meal.nutrition?.protein || 0,
-    carbs: meal.macros?.carbs || meal.nutrition?.carbs || 0,
-    fats: meal.macros?.fats || meal.nutrition?.fats || 0,
-  }));
+  interface MealItem {
+    id: string;
+    time: string;
+    type: string;
+    food: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+  }
+
+  interface DayGroup {
+    dateKey: string;
+    formattedDate: string;
+    totalCalories: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFats: number;
+    meals: MealItem[];
+  }
+
+  const daysMap = new Map<string, DayGroup>();
+
+  allMealLogs.forEach((meal: any) => {
+    const rawDate = meal.date || meal.loggedAt || meal.audit?.createdAt;
+    if (!rawDate) return;
+    const dateObj = new Date(rawDate);
+    const dateKey = dateObj.toISOString().split("T")[0];
+    const formattedDate = dateObj.toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+    const time = dateObj.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+
+    const calories = meal.calories || meal.nutrition?.calories || 0;
+    const protein = meal.macros?.protein || meal.nutrition?.protein || 0;
+    const carbs = meal.macros?.carbs || meal.nutrition?.carbs || 0;
+    const fats = meal.macros?.fats || meal.nutrition?.fats || 0;
+
+    const existing = daysMap.get(dateKey) || {
+      dateKey,
+      formattedDate: formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1),
+      totalCalories: 0,
+      totalProtein: 0,
+      totalCarbs: 0,
+      totalFats: 0,
+      meals: []
+    };
+
+    existing.totalCalories += calories;
+    existing.totalProtein += protein;
+    existing.totalCarbs += carbs;
+    existing.totalFats += fats;
+    existing.meals.push({
+      id: meal.publicId || meal._id?.toString() || Math.random().toString(),
+      time,
+      type: meal.mealType || meal.type || "Comida",
+      food: meal.foodName || meal.name || meal.food || "Alimento",
+      calories,
+      protein,
+      carbs,
+      fats
+    });
+
+    daysMap.set(dateKey, existing);
+  });
+
+  const historicalDays = Array.from(daysMap.values());
+  const totalLifetimeCalories = allMealLogs.reduce((acc, m) => acc + (m.calories || m.nutrition?.calories || 0), 0);
 
   // ═══════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 pt-8 sm:pt-10">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 pt-8 sm:pt-10 relative z-10">
+      {/* ── NAVEGACIÓN DE RETORNO ── */}
+      <div className="mb-6">
+        <Link 
+          href="/nutritionist"
+          className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-colors"
+        >
+          <span>←</span>
+          <span>VOLVER AL ROSTER DE PACIENTES</span>
+        </Link>
+      </div>
+
       {/* ── HEADER ── */}
       <header className="mb-10 border-b-4 border-red-600 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
@@ -237,6 +337,9 @@ export default async function NutritionistClientPage({ params }: { params: Promi
           </h1>
           <p className="mt-2 text-base sm:text-lg text-zinc-400 font-mono uppercase tracking-widest font-bold">
             CLIENTE: <span className="text-red-600 font-black">{client.name || client.email?.value || client.email}</span>
+          </p>
+          <p className="mt-1 text-xs text-zinc-500 font-mono">
+            ID: <span className="text-zinc-400 select-all">{client.publicId}</span>
           </p>
         </div>
         <div className="flex gap-3">
@@ -464,47 +567,146 @@ export default async function NutritionistClientPage({ params }: { params: Promi
         </div>
       </section>
 
-      {/* ── RECENT MEALS TABLE ── */}
-      <section className="mb-10">
-        <h2 className="text-3xl font-heading font-black text-white mb-6 uppercase border-l-4 border-red-600 pl-4">
-          REGISTRO DE COMIDAS RECIENTES
-        </h2>
-        <div className="brutalist-card overflow-hidden">
-          {mealLogRows.length === 0 ? (
-            <div className="p-10 text-center text-zinc-500 font-mono font-bold uppercase tracking-widest">
-              SIN REGISTROS DE COMIDAS EN LOS ÚLTIMOS 7 DÍAS
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b-2 border-zinc-800 bg-black">
-                    <th className="p-3 text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">FECHA</th>
-                    <th className="p-3 text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">TIPO</th>
-                    <th className="p-3 text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">ALIMENTO</th>
-                    <th className="p-3 text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest text-right">KCAL</th>
-                    <th className="p-3 text-[10px] text-red-500 font-mono font-bold uppercase tracking-widest text-right">P (g)</th>
-                    <th className="p-3 text-[10px] text-yellow-500 font-mono font-bold uppercase tracking-widest text-right">C (g)</th>
-                    <th className="p-3 text-[10px] text-indigo-500 font-mono font-bold uppercase tracking-widest text-right">G (g)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mealLogRows.map((row, i) => (
-                    <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-900/50 transition-colors">
-                      <td className="p-3 text-xs font-mono text-zinc-400">{row.date}</td>
-                      <td className="p-3 text-xs font-mono font-bold text-zinc-300 uppercase">{row.type}</td>
-                      <td className="p-3 text-sm font-bold text-white truncate max-w-50">{row.food}</td>
-                      <td className="p-3 text-sm font-mono font-black text-white text-right">{row.calories}</td>
-                      <td className="p-3 text-sm font-mono font-bold text-red-400 text-right">{row.protein}</td>
-                      <td className="p-3 text-sm font-mono font-bold text-yellow-400 text-right">{row.carbs}</td>
-                      <td className="p-3 text-sm font-mono font-bold text-indigo-400 text-right">{row.fats}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {/* ── HISTORIAL DE ALIMENTACIÓN COMPLETO ── */}
+      <section className="mb-12">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 border-l-4 border-red-600 pl-4">
+          <div>
+            <h2 className="text-3xl font-heading font-black text-white uppercase">
+              HISTORIAL DE ALIMENTACIÓN DEL ATLETA
+            </h2>
+            <p className="text-sm text-zinc-400 font-mono mt-0.5">
+              REGISTRO NUTRICIONAL COMPLETO // {allMealLogs.length} COMIDAS EN {historicalDays.length} DÍAS
+            </p>
+          </div>
         </div>
+
+        {/* Resumen Histórico de Nutrición */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-black border-2 border-zinc-800 p-4">
+            <div className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">COMIDAS REGISTRADAS</div>
+            <div className="text-3xl font-heading font-black text-white">{allMealLogs.length}</div>
+            <div className="text-[11px] text-zinc-400 font-mono mt-1">HISTÓRICAS</div>
+          </div>
+          <div className="bg-black border-2 border-zinc-800 p-4">
+            <div className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">DÍAS CON REGISTRO</div>
+            <div className="text-3xl font-heading font-black text-white">{historicalDays.length}</div>
+            <div className="text-[11px] text-zinc-400 font-mono mt-1">DÍAS ACTIVOS</div>
+          </div>
+          <div className="bg-black border-2 border-zinc-800 p-4">
+            <div className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">CALORÍAS TOTALES</div>
+            <div className="text-3xl font-heading font-black text-red-500">
+              {Math.round(totalLifetimeCalories).toLocaleString()} <span className="text-xs font-sans text-zinc-500">KCAL</span>
+            </div>
+            <div className="text-[11px] text-zinc-400 font-mono mt-1">INGESTA HISTÓRICA</div>
+          </div>
+          <div className="bg-black border-2 border-zinc-800 p-4">
+            <div className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">PROMEDIO DIARIO</div>
+            <div className="text-3xl font-heading font-black text-yellow-500">
+              {historicalDays.length > 0 ? Math.round(totalLifetimeCalories / historicalDays.length).toLocaleString() : 0} <span className="text-xs font-sans text-zinc-500">KCAL</span>
+            </div>
+            <div className="text-[11px] text-zinc-400 font-mono mt-1">EN DÍAS REGISTRADOS</div>
+          </div>
+        </div>
+
+        {historicalDays.length === 0 ? (
+          <div className="brutalist-card p-10 text-center text-zinc-500 font-mono font-bold uppercase text-lg border-dashed">
+            ESTE ATLETA AÚN NO HA REGISTRADO COMIDAS EN EL SISTEMA.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {historicalDays.map((day, idx) => {
+              const dayDiff = planCalories > 0 ? day.totalCalories - planCalories : null;
+              const dayAdherencePct = planCalories > 0 ? Math.round((day.totalCalories / planCalories) * 100) : null;
+
+              return (
+                <details 
+                  key={day.dateKey} 
+                  className="group brutalist-card overflow-hidden transition-all duration-300 open:border-red-600"
+                  open={idx === 0}
+                >
+                  <summary className="p-5 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none list-none [&::-webkit-details-marker]:hidden relative bg-zinc-900 hover:bg-zinc-800 transition-colors">
+                    <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-600 opacity-0 group-open:opacity-100 transition-all" />
+
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span className="bg-black text-white border-2 border-zinc-800 text-xs font-mono font-bold px-3 py-1 uppercase">
+                          {day.formattedDate}
+                        </span>
+                        <span className="text-zinc-400 bg-zinc-950 border border-zinc-800 text-xs font-mono font-bold px-2.5 py-0.5">
+                          {day.meals.length} {day.meals.length === 1 ? "COMIDA" : "COMIDAS"}
+                        </span>
+                        {dayAdherencePct !== null && (
+                          <span className={`text-xs font-mono font-black uppercase px-2 py-0.5 border ${
+                            Math.abs(100 - dayAdherencePct) <= 10 
+                              ? "bg-green-500/10 text-green-400 border-green-500/30" 
+                              : dayDiff! > 0 
+                              ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" 
+                              : "bg-red-500/10 text-red-400 border-red-500/30"
+                          }`}>
+                            {dayAdherencePct}% DEL PLAN {dayDiff! > 0 ? `(+${dayDiff} KCAL)` : `(${dayDiff} KCAL)`}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-mono text-zinc-400 mt-1">
+                        P: <span className="text-red-400 font-bold">{Math.round(day.totalProtein)}g</span> · C: <span className="text-yellow-400 font-bold">{Math.round(day.totalCarbs)}g</span> · G: <span className="text-indigo-400 font-bold">{Math.round(day.totalFats)}g</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-right shrink-0">
+                      <div className="bg-black p-3 border-2 border-zinc-800 text-center min-w-28">
+                        <div className="text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">TOTAL DÍA</div>
+                        <div className="text-xl font-black text-white">
+                          {Math.round(day.totalCalories).toLocaleString()} <span className="text-xs font-bold text-zinc-500">KCAL</span>
+                        </div>
+                      </div>
+                      <div className="text-zinc-500 group-open:rotate-180 transition-transform font-black text-lg px-2">
+                        ▼
+                      </div>
+                    </div>
+                  </summary>
+
+                  <div className="p-6 border-t-2 border-zinc-800 bg-black">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="border-b-2 border-zinc-800 bg-zinc-950">
+                            <th className="p-3 text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">HORA</th>
+                            <th className="p-3 text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">TIPO</th>
+                            <th className="p-3 text-[10px] text-zinc-500 font-mono font-bold uppercase tracking-widest">ALIMENTO</th>
+                            <th className="p-3 text-[10px] text-zinc-400 font-mono font-bold uppercase tracking-widest text-right">KCAL</th>
+                            <th className="p-3 text-[10px] text-red-500 font-mono font-bold uppercase tracking-widest text-right">P (g)</th>
+                            <th className="p-3 text-[10px] text-yellow-500 font-mono font-bold uppercase tracking-widest text-right">C (g)</th>
+                            <th className="p-3 text-[10px] text-indigo-500 font-mono font-bold uppercase tracking-widest text-right">G (g)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {day.meals.map((meal) => {
+                            const badge = getMealTypeBadge(meal.type);
+                            return (
+                              <tr key={meal.id} className="border-b border-zinc-900 hover:bg-zinc-900/50 transition-colors">
+                                <td className="p-3 text-xs font-mono text-zinc-400">{meal.time}</td>
+                                <td className="p-3">
+                                  <span className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 border ${badge.color}`}>
+                                    {badge.label}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-sm font-bold text-white truncate max-w-xs">{meal.food}</td>
+                                <td className="p-3 text-sm font-mono font-black text-white text-right">{meal.calories}</td>
+                                <td className="p-3 text-sm font-mono font-bold text-red-400 text-right">{meal.protein}</td>
+                                <td className="p-3 text-sm font-mono font-bold text-yellow-400 text-right">{meal.carbs}</td>
+                                <td className="p-3 text-sm font-mono font-bold text-indigo-400 text-right">{meal.fats}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ── PROTOCOL ASSIGNMENT FORM ── */}
