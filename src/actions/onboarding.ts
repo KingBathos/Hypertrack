@@ -1,22 +1,19 @@
 "use server";
 
-import { getDb } from "@/lib/db/mongodb";
 import { generatePublicId } from "@/lib/utils/id";
 import { redirect } from "next/navigation";
 import type { ProfileDocument } from "@/types/profile";
+import { UserDAO } from "@/lib/dao/user.dao";
+import { ProfileDAO } from "@/lib/dao/profile.dao";
 
 export async function saveOnboardingProfile(data: any, userId: string) {
-  const db = await getDb();
-  const usersCollection = db.collection("users");
-  const profilesCollection = db.collection("profiles");
+  const userDoc = await UserDAO.findByPublicId(userId);
 
-  const userDoc = await usersCollection.findOne({ publicId: userId }, { projection: { _id: 1 } });
-  
   if (!userDoc) {
     throw new Error("Usuario no encontrado.");
   }
 
-  const existingProfile = await profilesCollection.findOne({ userId: userDoc._id }, { projection: { _id: 1 } });
+  const existingProfile = await ProfileDAO.findProfileByUserId(userDoc._id);
   if (existingProfile) {
     throw new Error("Ya existe un perfil para este usuario.");
   }
@@ -72,7 +69,7 @@ export async function saveOnboardingProfile(data: any, userId: string) {
   } as any;
 
   try {
-    await profilesCollection.insertOne(profileDocument as any);
+    await ProfileDAO.insertProfile(profileDocument);
   } catch (error: any) {
     if (error.code === 11000 && error.message.includes("contact.phone")) {
       throw new Error("Este número de teléfono ya está registrado en otra cuenta.");
@@ -84,8 +81,6 @@ export async function saveOnboardingProfile(data: any, userId: string) {
 }
 
 export async function checkPhoneExists(phone: string): Promise<boolean> {
-  const db = await getDb();
-  const profilesCollection = db.collection("profiles");
-  const existing = await profilesCollection.findOne({ "contact.phone": phone }, { projection: { _id: 1 } });
+  const existing = await ProfileDAO.findProfileByPhone(phone);
   return !!existing;
 }

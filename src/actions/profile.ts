@@ -1,10 +1,13 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
-import { getDb } from "@/lib/db/mongodb";
 import { revalidatePath } from "next/cache";
 import { ulid } from "ulid";
 import { biometricsSchema } from "@/lib/schemas/profile.schema";
+import { UserDAO } from "@/lib/dao/user.dao";
+import { ProfileDAO } from "@/lib/dao/profile.dao";
+import { calculateWHR } from "@/lib/domain/biometrics";
+import { logSecurityAction } from "@/lib/audit";
 
 export async function linkProfessional(formData: FormData) {
   const session = await getSession();
@@ -15,44 +18,39 @@ export async function linkProfessional(formData: FormData) {
   const professionalId = formData.get("professionalId")?.toString().trim();
   const roleType = formData.get("roleType")?.toString(); // "COACH" or "NUTRITIONIST"
 
-  if (!roleType) {
-    throw new Error("Rol inválido.");
+  if (!roleType || (roleType !== "COACH" && roleType !== "NUTRITIONIST")) {
+    throw new Error("Rol inválido especificado.");
   }
 
-  const db = await getDb();
-  const usersCollection = db.collection("users");
-
-  // Validate that the user exists
-  const user = await usersCollection.findOne({ publicId: session.sub });
+  const user = await UserDAO.findByPublicId(session.sub);
   if (!user) throw new Error("Usuario no encontrado.");
 
   const updateField = roleType === "COACH" ? "coachId" : "nutritionistId";
 
   // Si professionalId viene vacío, es una acción de DESVINCULAR
   if (!professionalId) {
-    await usersCollection.updateOne(
-      { _id: user._id },
-      { $unset: { [updateField]: "" } }
-    );
+    await UserDAO.unlinkProfessional(user._id, updateField);
+    await logSecurityAction(session.sub, "UNLINK_PROFESSIONAL", user._id, { roleType });
     revalidatePath("/profile");
     return;
   }
 
   // Validate that the professional exists and has the correct role
-  const professional = await usersCollection.findOne({ publicId: professionalId });
+  const professional = await UserDAO.findByPublicId(professionalId);
   if (!professional) {
     throw new Error("El profesional indicado no existe.");
   }
-  
+
   if (professional.role !== roleType) {
     throw new Error(`El usuario indicado no es un ${roleType}.`);
   }
 
   // Update user profile with the new professional link
-  await usersCollection.updateOne(
-    { _id: user._id },
-    { $set: { [updateField]: professionalId } }
-  );
+  await UserDAO.linkProfessional(user._id, updateField, professionalId);
+  await logSecurityAction(session.sub, "LINK_PROFESSIONAL", user._id, {
+    roleType,
+    professionalId,
+  });
 
   revalidatePath("/profile");
 }
@@ -65,7 +63,9 @@ export async function logBiometrics(formData: FormData) {
 
   const payload = {
     weight: Number(formData.get("weight")),
-    bodyFatPercentage: formData.get("bodyFatPercentage") ? Number(formData.get("bodyFatPercentage")) : undefined,
+    bodyFatPercentage: formData.get("bodyFatPercentage")
+      ? Number(formData.get("bodyFatPercentage"))
+      : undefined,
     waistCm: formData.get("waistCm") ? Number(formData.get("waistCm")) : undefined,
     hipCm: formData.get("hipCm") ? Number(formData.get("hipCm")) : undefined,
     chestCm: formData.get("chestCm") ? Number(formData.get("chestCm")) : undefined,
@@ -75,21 +75,22 @@ export async function logBiometrics(formData: FormData) {
   };
 
   const validatedFields = biometricsSchema.safeParse(payload);
-  
+
   if (!validatedFields.success) {
-    return { success: false, error: "Datos inválidos.", details: validatedFields.error.flatten().fieldErrors };
+    return {
+      success: false,
+      error: "Datos inválidos.",
+      details: validatedFields.error.flatten().fieldErrors,
+    };
   }
 
   try {
-    const db = await getDb();
-    
-    // Validar usuario
-    const user = await db.collection("users").findOne({ publicId: session.sub });
+    const user = await UserDAO.findByPublicId(session.sub);
     if (!user) {
       return { success: false, error: "Usuario no encontrado." };
     }
 
-    // Construir circunferencias (solo las que se proporcionaron)
+    // Construir circunferencias (solo las proporcionadas)
     const circumferences: Record<string, number> = {};
     if (validatedFields.data.waistCm) circumferences.waistCm = validatedFields.data.waistCm;
     if (validatedFields.data.hipCm) circumferences.hipCm = validatedFields.data.hipCm;
@@ -98,41 +99,28 @@ export async function logBiometrics(formData: FormData) {
     if (validatedFields.data.thighCm) circumferences.thighCm = validatedFields.data.thighCm;
     if (validatedFields.data.calfCm) circumferences.calfCm = validatedFields.data.calfCm;
 
-    // Calcular ratio cintura/cadera automáticamente
+    // Calcular ratio cintura/cadera usando el módulo de dominio puro
     let waistToHipRatio: number | undefined;
     if (circumferences.waistCm && circumferences.hipCm) {
-      waistToHipRatio = Math.round((circumferences.waistCm / circumferences.hipCm) * 100) / 100;
+      waistToHipRatio = calculateWHR(circumferences.waistCm, circumferences.hipCm);
     }
 
-    // Insertar en body_measurements
-    const newMeasurement = {
+    // Insertar en body_measurements a través de ProfileDAO
+    await ProfileDAO.insertMeasurement({
       publicId: `mes_${ulid()}`,
       userId: user._id,
       weight: validatedFields.data.weight,
-      ...(validatedFields.data.bodyFatPercentage ? { bodyFatPercentage: validatedFields.data.bodyFatPercentage } : {}),
-      ...(Object.keys(circumferences).length > 0 ? { circumferences } : {}),
-      ...(waistToHipRatio ? { waistToHipRatio } : {}),
+      bodyFatPercentage: validatedFields.data.bodyFatPercentage,
+      circumferences,
+      waistToHipRatio,
       date: new Date(),
-      audit: {
-        createdAt: new Date(),
-      }
-    };
+    });
 
-    await db.collection("body_measurements").insertOne(newMeasurement);
-
-    // Actualizar también en el perfil para tener la foto más reciente siempre a la mano
-    const profileUpdate: Record<string, any> = {
-      "physical.weightKg": validatedFields.data.weight,
-      "audit.updatedAt": new Date(),
-    };
-    if (validatedFields.data.bodyFatPercentage) {
-      profileUpdate["physical.bodyFatPercentage"] = validatedFields.data.bodyFatPercentage;
-    }
-
-    await db.collection("profiles").updateOne(
-      { userId: user._id },
-      { $set: profileUpdate }
-    );
+    // Actualizar métricas físicas en el perfil principal
+    await ProfileDAO.updatePhysicalMetrics(user._id, {
+      weightKg: validatedFields.data.weight,
+      bodyFatPercentage: validatedFields.data.bodyFatPercentage,
+    });
 
     revalidatePath("/dashboard");
     revalidatePath("/profile");

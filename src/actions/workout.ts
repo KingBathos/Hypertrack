@@ -1,10 +1,13 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
-import { getDb } from "@/lib/db/mongodb";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import { logSecurityAction } from "@/lib/audit";
+import { UserDAO } from "@/lib/dao/user.dao";
+import { WorkoutDAO } from "@/lib/dao/workout.dao";
+import { calculateEpley1RM, calculateVolumeLoad } from "@/lib/domain/biomechanics";
+import { getDb } from "@/lib/db/mongodb";
 
 function generateId(prefix: string) {
   return `${prefix}_${crypto.randomBytes(13).toString("hex").toUpperCase()}`;
@@ -22,105 +25,86 @@ const DEFAULT_EXERCISES = [
 ];
 
 export async function getExercises() {
-  const db = await getDb();
-  const coll = db.collection("exercise_library");
-  
-  let exercises = await coll.find().toArray();
-  
+  let exercises = await WorkoutDAO.getAllExercises();
+
   if (exercises.length === 0) {
-    const docs = DEFAULT_EXERCISES.map(e => ({
+    const docs = DEFAULT_EXERCISES.map((e) => ({
       publicId: generateId("exe"),
       name: e.name,
       category: e.category,
       movementPattern: e.movementPattern,
       bodyPart: "Full Body",
       equipment: "Variado",
-      audit: { createdAt: new Date(), updatedAt: new Date() }
+      audit: { createdAt: new Date(), updatedAt: new Date() },
     }));
-    await coll.insertMany(docs);
-    exercises = await coll.find().toArray();
+    await WorkoutDAO.insertExercises(docs);
+    exercises = await WorkoutDAO.getAllExercises();
   }
-  
-  return exercises.map(e => ({
+
+  return exercises.map((e: any) => ({
     ...e,
-    _id: e._id.toString()
+    _id: e._id.toString(),
   }));
 }
 
-export async function createTrainingProgram(data: { name: string, goal?: string, level?: string, exercises: any[] }) {
+export async function createTrainingProgram(data: {
+  name: string;
+  goal?: string;
+  level?: string;
+  exercises: any[];
+}) {
   const session = await getSession();
   if (!session || (session.role !== "COACH" && session.role !== "ADMIN")) {
     throw new Error("Solo los coaches pueden crear programas.");
   }
-  const db = await getDb();
-  const coach = await db.collection("users").findOne({ publicId: session.sub });
+
+  const coach = await UserDAO.findByPublicId(session.sub);
   if (!coach) throw new Error("Coach no encontrado");
 
-  const now = new Date();
-  
-  const program = {
-    publicId: generateId("prg"),
-    authorId: coach._id,
-    name: data.name,
-    description: "Programa creado en portal",
-    goal: data.goal || "HYPERTROPHY",
-    level: data.level || "INTERMEDIATE",
-    status: "ACTIVE",
-    exercises: data.exercises.map((e, index) => ({
-      order: index,
-      exerciseId: e.exerciseId, // String para UI, opcional mapear a ObjectId
-      exerciseName: e.exerciseName,
-      targetSets: Number(e.targetSets) || 3,
-      targetReps: Number(e.targetReps) || 10,
-      targetRpe: Number(e.targetRpe) || 8,
-      restSeconds: 90
-    })),
-    audit: { createdAt: now, updatedAt: now, createdBy: coach._id }
-  };
+  const programPublicId = generateId("prg");
+  await WorkoutDAO.createTrainingProgram(
+    {
+      authorId: coach._id,
+      name: data.name,
+      goal: data.goal,
+      level: data.level,
+      exercises: data.exercises,
+    },
+    programPublicId
+  );
 
-  await db.collection("training_programs").insertOne(program);
-  
   revalidatePath("/coach");
-  return { success: true, programId: program.publicId };
+  return { success: true, programId: programPublicId };
 }
 
 export async function assignProgramToClient(clientIdStr: string, programPublicId: string) {
   const session = await getSession();
-  if (!session || (session.role !== "COACH" && session.role !== "ADMIN")) throw new Error("Acceso Denegado");
-  
-  const db = await getDb();
-  const client = await db.collection("users").findOne({ publicId: clientIdStr });
-  const program = await db.collection("training_programs").findOne({ publicId: programPublicId });
-  const coach = await db.collection("users").findOne({ publicId: session.sub });
-  
+  if (!session || (session.role !== "COACH" && session.role !== "ADMIN")) {
+    throw new Error("Acceso Denegado");
+  }
+
+  const client = await UserDAO.findByPublicId(clientIdStr);
+  const program = await WorkoutDAO.findProgramByPublicId(programPublicId);
+  const coach = await UserDAO.findByPublicId(session.sub);
+
   if (!client || !program || !coach) throw new Error("Datos no encontrados");
 
-  await db.collection("program_assignments").updateMany(
-    { clientId: client._id, status: "ACTIVE" },
-    { $set: { status: "COMPLETED", endDate: new Date() } }
-  );
+  // Inactivar asignaciones activas previas a través del DAO
+  await WorkoutDAO.completeActiveAssignments(client._id);
 
-  const now = new Date();
-  const assignment = {
-    publicId: generateId("asn"),
+  // Crear la nueva asignación
+  const assignmentPublicId = generateId("asn");
+  await WorkoutDAO.assignProgram({
+    publicId: assignmentPublicId,
     clientId: client._id,
     coachId: coach._id,
     programVersionId: program._id,
-    status: "ACTIVE",
-    startDate: now,
-    audit: {
-      createdAt: now,
-      createdBy: coach._id,
-      updatedAt: now
-    }
-  };
-
-  await db.collection("program_assignments").insertOne(assignment);
+  });
 
   // Registrar auditoría de seguridad
   await logSecurityAction(session.sub, "ASSIGN_PROGRAM", client._id, {
     programId: program._id,
-    programName: program.name
+    programName: program.name,
   });
 
   revalidatePath("/dashboard");
@@ -130,53 +114,45 @@ export async function assignProgramToClient(clientIdStr: string, programPublicId
 
 // --- MODO ATLETA LIBRE: Plantillas ---
 
-export async function createWorkoutTemplate(data: { name: string; notes?: string; exercises: any[] }) {
+export async function createWorkoutTemplate(data: {
+  name: string;
+  notes?: string;
+  exercises: any[];
+}) {
   const session = await getSession();
   if (!session) throw new Error("No autenticado");
 
-  const db = await getDb();
-  const user = await db.collection("users").findOne({ publicId: session.sub });
+  const user = await UserDAO.findByPublicId(session.sub);
   if (!user) throw new Error("Usuario no encontrado");
 
-  const now = new Date();
-  const template = {
-    publicId: generateId("tpl"),
-    clientId: user._id,
-    name: data.name,
-    notes: data.notes,
-    exercises: data.exercises.map(e => ({
-      exerciseId: e.exerciseId,
-      exerciseName: e.exerciseName,
-      targetSets: Number(e.targetSets) || 3,
-      targetReps: e.targetReps || "10",
-      targetRpe: e.targetRpe ? Number(e.targetRpe) : undefined,
-      targetRestSeconds: e.targetRestSeconds ? Number(e.targetRestSeconds) : 90
-    })),
-    audit: { createdAt: now, updatedAt: now }
-  };
+  const templatePublicId = generateId("tpl");
+  await WorkoutDAO.createWorkoutTemplate(
+    {
+      clientId: user._id,
+      name: data.name,
+      notes: data.notes,
+      exercises: data.exercises,
+    },
+    templatePublicId
+  );
 
-  await db.collection("workout_templates").insertOne(template);
   revalidatePath("/entrenamiento");
-  return { success: true, templateId: template.publicId };
+  return { success: true, templateId: templatePublicId };
 }
 
 export async function getUserTemplates() {
   const session = await getSession();
   if (!session) return [];
 
-  const db = await getDb();
-  const user = await db.collection("users").findOne({ publicId: session.sub });
+  const user = await UserDAO.findByPublicId(session.sub);
   if (!user) return [];
 
-  const templates = await db.collection("workout_templates")
-    .find({ clientId: user._id })
-    .sort({ "audit.createdAt": -1 })
-    .toArray();
+  const templates = await WorkoutDAO.getUserTemplates(user._id);
 
-  return templates.map(t => ({
+  return templates.map((t: any) => ({
     ...t,
     _id: t._id.toString(),
-    clientId: t.clientId.toString()
+    clientId: t.clientId.toString(),
   }));
 }
 
@@ -188,22 +164,22 @@ export async function logWorkoutSession(data: {
   notes?: string;
   startedAt: string | Date;
   finishedAt: string | Date;
-  exercises: any[]; // WorkoutExercise[]
+  exercises: any[];
 }) {
   const session = await getSession();
   if (!session) throw new Error("No autenticado");
 
-  const db = await getDb();
-  const user = await db.collection("users").findOne({ publicId: session.sub });
+  const user = await UserDAO.findByPublicId(session.sub);
   if (!user) throw new Error("Usuario no encontrado");
 
   const startedAt = new Date(data.startedAt);
   const finishedAt = new Date(data.finishedAt);
   const durationMinutes = Math.round((finishedAt.getTime() - startedAt.getTime()) / 60000);
 
-  const workoutSession = {
-    publicId: generateId("wks"),
+  const sessionPublicId = generateId("wks");
+  const insertedSession = await WorkoutDAO.insertWorkoutSession({
     clientId: user._id,
+    publicId: sessionPublicId,
     type: data.type,
     name: data.name,
     notes: data.notes,
@@ -211,56 +187,42 @@ export async function logWorkoutSession(data: {
     startedAt,
     finishedAt,
     durationMinutes,
-    prsBroken: 0, // Placeholder, se actualiza después
-    metadata: {
-      schemaVersion: 1,
-      source: "web"
-    },
-    audit: {
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  };
+  });
 
-  // === CÁLCULO REACTIVO DE PRs (Materialized View) ===
-  const prsColl = db.collection("personal_records");
+  // === CÁLCULO REACTIVO DE PRs (Usando WorkoutDAO y Biomechanics Domain) ===
   let prsBroken = 0;
 
-  for (let eIdx = 0; eIdx < workoutSession.exercises.length; eIdx++) {
-    const ex = workoutSession.exercises[eIdx];
-    const trackingId = ex.exerciseId || ex.exerciseName; // Fallback al nombre si no hay ID
+  for (let eIdx = 0; eIdx < data.exercises.length; eIdx++) {
+    const ex = data.exercises[eIdx];
+    const trackingId = ex.exerciseId || ex.exerciseName;
     if (!trackingId) continue;
 
     let maxWeightKg = 0;
-    let bestSet = null;
-    let bestSetIdx = -1;
+    let bestSet: any = null;
 
     for (let sIdx = 0; sIdx < ex.sets.length; sIdx++) {
       const set = ex.sets[sIdx];
       if (set.isWarmup || set.isDropSet) continue;
-      
+
       const weightInKg = set.unit === "LBS" ? set.weight * 0.453592 : set.weight;
-      
+
       if (weightInKg > maxWeightKg || (weightInKg === maxWeightKg && bestSet && set.reps > bestSet.reps)) {
         maxWeightKg = weightInKg;
         bestSet = set;
-        bestSetIdx = sIdx;
       }
     }
 
     if (bestSet) {
-      const estimated1RM = maxWeightKg * (1 + (bestSet.reps / 30));
-
-      const existingPr = await prsColl.findOne({
-        clientId: user._id,
-        exerciseId: trackingId
-      });
+      const existingPr = await WorkoutDAO.getPersonalRecord(user._id, trackingId);
 
       let isNewPr = false;
       if (!existingPr) {
         isNewPr = true;
       } else {
-        const existingWeightKg = existingPr.maxWeightUnit === "LBS" ? existingPr.maxWeight * 0.453592 : existingPr.maxWeight;
+        const existingWeightKg =
+          existingPr.maxWeightUnit === "LBS"
+            ? existingPr.maxWeight * 0.453592
+            : existingPr.maxWeight;
         if (maxWeightKg > existingWeightKg) {
           isNewPr = true;
         } else if (maxWeightKg === existingWeightKg && bestSet.reps > existingPr.maxWeightReps) {
@@ -270,105 +232,65 @@ export async function logWorkoutSession(data: {
 
       if (isNewPr) {
         prsBroken++;
-        workoutSession.exercises[eIdx].sets[bestSetIdx].isPR = true; // Marcar en memoria antes de guardar
-
-        // Aquí no tenemos result.insertedId todavía, porque lo guardaremos al final
-        await prsColl.updateOne(
-          { clientId: user._id, exerciseId: trackingId },
-          {
-            $set: {
-              exerciseName: ex.exerciseName,
-              maxWeight: bestSet.weight,
-              maxWeightReps: bestSet.reps,
-              maxWeightUnit: bestSet.unit,
-              estimated1RM: estimated1RM,
-              dateAchieved: startedAt,
-              "audit.updatedAt": new Date()
-            },
-            $setOnInsert: {
-              "audit.createdAt": new Date()
-            }
-          },
-          { upsert: true }
-        );
+        await WorkoutDAO.upsertPersonalRecord({
+          clientId: user._id,
+          exerciseId: ex.exerciseId || trackingId,
+          exerciseName: ex.exerciseName,
+          maxWeight: bestSet.weight,
+          maxWeightReps: bestSet.reps,
+          maxWeightUnit: bestSet.unit,
+          workoutSessionId: insertedSession._id,
+        });
       }
     }
   }
 
-  workoutSession.prsBroken = prsBroken;
-  const result = await db.collection("workout_sessions").insertOne(workoutSession);
-
-  // Enlazar los PRs con la sesión recién creada (workoutSessionId)
   if (prsBroken > 0) {
-    await prsColl.updateMany(
-      { clientId: user._id, dateAchieved: startedAt },
-      { $set: { workoutSessionId: result.insertedId } }
-    );
+    await WorkoutDAO.updateSessionPrsCount(insertedSession._id, prsBroken);
   }
 
   // === COMPLETAR PROGRAMA ACTIVO ===
-  // Si la sesión fue de tipo PROGRAM, marcar la asignación como completada
-  // para que no siga apareciendo como activa en el dashboard
   if (data.type === "PROGRAM") {
-    await db.collection("program_assignments").updateOne(
-      { clientId: user._id, status: "ACTIVE" },
-      {
-        $set: {
-          status: "COMPLETED",
-          endDate: new Date(),
-          "audit.updatedAt": new Date(),
-        },
-      }
-    );
+    await WorkoutDAO.completeActiveAssignments(user._id);
   }
 
-  // === GAMIFICACIÓN (SUBIR DE NIVEL) ===
-  // Calcular volumen total para XP
+  // === GAMIFICACIÓN (XP Y VOLUMEN CON LÓGICA DE DOMINIO) ===
   let totalVolume = 0;
   for (const ex of data.exercises) {
-    for (const set of ex.sets) {
-      if (set.isWarmup || set.isDropSet) continue;
-      const weight = Number(set.weight) || 0;
-      const reps = Number(set.reps) || 0;
-      totalVolume += (weight * reps);
-    }
+    totalVolume += calculateVolumeLoad(ex.sets);
   }
 
   if (totalVolume > 0) {
+    const db = await getDb();
     await db.collection("profiles").updateOne(
       { userId: user._id },
-      { 
-        $inc: { 
-          lifetimeVolume: totalVolume, 
-          totalXp: Math.floor(totalVolume * 0.1) // 10% del volumen convertido en XP
-        } 
+      {
+        $inc: {
+          lifetimeVolume: totalVolume,
+          totalXp: Math.floor(totalVolume * 0.1),
+        },
       }
     );
   }
 
   revalidatePath("/entrenamiento");
   revalidatePath("/dashboard");
-  return { success: true, sessionId: workoutSession.publicId };
+  return { success: true, sessionId: sessionPublicId };
 }
 
 export async function getWorkoutHistory(limit = 10) {
   const session = await getSession();
   if (!session) return [];
 
-  const db = await getDb();
-  const user = await db.collection("users").findOne({ publicId: session.sub });
+  const user = await UserDAO.findByPublicId(session.sub);
   if (!user) return [];
 
-  const history = await db.collection("workout_sessions")
-    .find({ clientId: user._id })
-    .sort({ startedAt: -1 })
-    .limit(limit)
-    .toArray();
+  const history = await WorkoutDAO.getSessionsForClient(user._id, limit);
 
-  return history.map(h => ({
+  return history.map((h: any) => ({
     ...h,
     _id: h._id.toString(),
-    clientId: h.clientId.toString()
+    clientId: h.clientId.toString(),
   }));
 }
 
@@ -376,21 +298,16 @@ export async function getExercisePRs(exerciseId: string) {
   const session = await getSession();
   if (!session) return null;
 
-  const db = await getDb();
-  const user = await db.collection("users").findOne({ publicId: session.sub });
+  const user = await UserDAO.findByPublicId(session.sub);
   if (!user) return null;
 
-  const pr = await db.collection("personal_records").findOne({
-    clientId: user._id,
-    exerciseId: exerciseId
-  });
-
+  const pr = await WorkoutDAO.getPersonalRecord(user._id, exerciseId);
   if (!pr) return null;
 
   return {
     ...pr,
     _id: pr._id.toString(),
     clientId: pr.clientId.toString(),
-    workoutSessionId: pr.workoutSessionId.toString()
+    workoutSessionId: pr.workoutSessionId?.toString() || "",
   };
 }

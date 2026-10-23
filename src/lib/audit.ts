@@ -1,5 +1,5 @@
-import { getDb } from "@/lib/db/mongodb";
 import { ObjectId } from "mongodb";
+import { AuditDAO } from "./dao/audit.dao";
 
 export async function logSecurityAction(
   actorId: ObjectId | string,
@@ -7,18 +7,5 @@ export async function logSecurityAction(
   targetId: ObjectId | string,
   metadata: Record<string, any>
 ) {
-  try {
-    const db = await getDb();
-    const auditColl = db.collection("audit_logs");
-
-    await auditColl.insertOne({
-      timestamp: new Date(),
-      actorId,
-      action: actionType,
-      targetId,
-      details: metadata
-    });
-  } catch (error) {
-    console.error("[Audit Error] Falla al registrar auditoría:", error);
-  }
+  await AuditDAO.logAction(actorId, actionType, targetId, metadata);
 }
