@@ -44,8 +44,9 @@ class ProfileDAOImpl extends BaseDAO<any> {
     metrics: { weightKg?: number; bodyFatPercentage?: number }
   ) {
     const db = await this.getDatabase();
+    const now = new Date();
     const updateFields: Record<string, any> = {
-      "audit.updatedAt": new Date(),
+      "audit.updatedAt": now,
     };
 
     if (metrics.weightKg !== undefined) {
@@ -55,23 +56,54 @@ class ProfileDAOImpl extends BaseDAO<any> {
       updateFields["physical.bodyFatPercentage"] = metrics.bodyFatPercentage;
     }
 
-    return db.collection("profiles").updateOne({ userId }, { $set: updateFields });
+    return db.collection("profiles").updateOne(
+      { userId },
+      {
+        $set: updateFields,
+        $setOnInsert: {
+          userId,
+          "audit.createdAt": now,
+        },
+      },
+      { upsert: true }
+    );
   }
 
   async insertMeasurement(data: BodyMeasurementDTO) {
     const db = await this.getDatabase();
-    const doc = {
+    const now = data.date || new Date();
+    const objectIdUser = this.requireObjectId(data.userId, "userId");
+
+    // Construir circunferencias BSON compatibles con el validador de MongoDB
+    const circumferencesCm: Record<string, number> = {};
+    if (data.circumferences) {
+      if (data.circumferences.waistCm && data.circumferences.waistCm >= 40) circumferencesCm.waist = data.circumferences.waistCm;
+      if (data.circumferences.chestCm && data.circumferences.chestCm >= 50) circumferencesCm.chest = data.circumferences.chestCm;
+      if (data.circumferences.armCm && data.circumferences.armCm >= 15) {
+        circumferencesCm.leftArm = data.circumferences.armCm;
+        circumferencesCm.rightArm = data.circumferences.armCm;
+      }
+      if (data.circumferences.calfCm && data.circumferences.calfCm >= 20) circumferencesCm.calves = data.circumferences.calfCm;
+    }
+
+    const doc: Record<string, any> = {
       publicId: data.publicId,
-      userId: data.userId,
-      weight: data.weight,
-      ...(data.bodyFatPercentage !== undefined ? { bodyFatPercentage: data.bodyFatPercentage } : {}),
-      ...(data.circumferences && Object.keys(data.circumferences).length > 0
-        ? { circumferences: data.circumferences }
-        : {}),
+      clientId: objectIdUser,     // Requerido por el validador $jsonSchema de MongoDB
+      userId: objectIdUser,       // Retrocompatibilidad
+      logDate: now,               // Requerido por el validador $jsonSchema
+      date: now,                  // Retrocompatibilidad
+      weight: data.weight,        // Retrocompatibilidad
+      bodyFatPercentage: data.bodyFatPercentage ?? null,
+      metrics: {                  // Requerido por el validador $jsonSchema
+        weightKg: data.weight,
+        bodyFatPercentage: data.bodyFatPercentage ?? null,
+      },
+      ...(Object.keys(circumferencesCm).length > 0 ? { circumferencesCm } : {}),
+      ...(data.circumferences && Object.keys(data.circumferences).length > 0 ? { circumferences: data.circumferences } : {}),
       ...(data.waistToHipRatio !== undefined ? { waistToHipRatio: data.waistToHipRatio } : {}),
-      date: data.date || new Date(),
-      audit: {
-        createdAt: new Date(),
+      audit: {                    // Requerido por el validador $jsonSchema: createdAt y updatedAt
+        createdAt: now,
+        updatedAt: now,
       },
     };
 
@@ -82,8 +114,10 @@ class ProfileDAOImpl extends BaseDAO<any> {
     const db = await this.getDatabase();
     return db
       .collection("body_measurements")
-      .find({ userId })
-      .sort({ date: -1 })
+      .find({
+        $or: [{ clientId: userId }, { userId: userId }],
+      })
+      .sort({ logDate: -1, date: -1 })
       .limit(limit)
       .toArray();
   }

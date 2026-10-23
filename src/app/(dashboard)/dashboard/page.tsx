@@ -54,14 +54,16 @@ export default async function UserDashboard() {
 
   const [profile, latestMeasurement, activeProgram, activeNutrition, todayMeals, recentWorkouts] = await Promise.all([
     profilesCol.findOne({ userId: user._id }),
-    measurementsCol.find({ userId: user._id }).sort({ date: -1 }).limit(1).toArray(),
+    measurementsCol.find({ $or: [{ userId: user._id }, { clientId: user._id }] }).sort({ logDate: -1, date: -1 }).limit(1).toArray(),
     programsCol.findOne({ clientId: user._id, status: "ACTIVE" }),
     nutritionCol.findOne({ clientId: user._id, status: "ACTIVE" }),
     mealLogsCol.find({ userId: user._id, loggedAt: { $gte: startOfDay, $lte: endOfDay } }).toArray(),
     workoutSessionsCol.find({ clientId: user._id, startedAt: { $gte: thirtyDaysAgo } }).sort({ startedAt: -1 }).toArray(),
   ]);
 
-  const measurement = latestMeasurement[0] || null;
+  const measurement: any = latestMeasurement[0] || null;
+  const measurementWeight = measurement?.metrics?.weightKg ?? measurement?.weight;
+  const measurementBodyFat = measurement?.metrics?.bodyFatPercentage ?? measurement?.bodyFatPercentage;
   const firstName = profile?.identity?.firstName || "ATLETA";
 
   // ─────────────────────────────────────────────
@@ -316,15 +318,15 @@ export default async function UserDashboard() {
               BIOMETRÍA
             </h2>
             
-            {measurement ? (
+            {measurement && measurementWeight ? (
               <div className="space-y-6">
                 <div className="border-b-2 border-zinc-800 pb-4">
                   <div className="text-sm text-zinc-500 font-mono uppercase tracking-widest mb-1">PESO CORPORAL</div>
-                  <div className="text-5xl font-black text-white">{measurement.weight} <span className="text-xl font-normal text-zinc-500">KG</span></div>
+                  <div className="text-5xl font-black text-white">{measurementWeight} <span className="text-xl font-normal text-zinc-500">KG</span></div>
                 </div>
                 <div>
                   <div className="text-sm text-zinc-500 font-mono uppercase tracking-widest mb-1">GRASA CORPORAL</div>
-                  <div className="text-4xl font-bold text-zinc-300">{measurement.bodyFatPercentage || "--"}%</div>
+                  <div className="text-4xl font-bold text-zinc-300">{measurementBodyFat || "--"}%</div>
                 </div>
               </div>
             ) : profile?.physical?.weightKg ? (
