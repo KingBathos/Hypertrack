@@ -1,0 +1,218 @@
+@startuml DiagramaClases
+' Configuración visual para forzar que se muestren los íconos estándar de visibilidad (+, -, #)
+skinparam classAttributeIconSize 0
+skinparam classBackgroundColor #1A1A1A
+skinparam classBorderColor #DC2626
+skinparam classFontColor #FFFFFF
+skinparam classHeaderBackgroundColor #DC2626
+skinparam classAttributeFontColor #D4D4D8
+skinparam noteBackgroundColor #27272A
+skinparam noteBorderColor #52525B
+skinparam noteFontColor #E4E4E7
+skinparam BackgroundColor #09090B
+skinparam arrowColor #71717A
+
+title Diagrama de Clases UML - HyperTrack
+
+' ==========================================
+' ENUMERACIONES (Tipos de datos propios)
+' ==========================================
+enum RoleType {
+  USER
+  COACH
+  NUTRITIONIST
+  ADMIN
+}
+
+enum GoalType {
+  HYPERTROPHY
+  STRENGTH
+  FAT_LOSS
+  ENDURANCE
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MuscleType {
+  CHEST
+  BACK
+  SHOULDERS
+  LEGS
+  ARMS
+  CORE
+}
+
+' ==========================================
+' CLASES DEL DOMINIO
+' ==========================================
+
+class User {
+  - id : String
+  - publicId : String
+  - email : String
+  - passwordHash : String
+  - role : RoleType
+  - status : String
+  - coachId : String
+  - nutritionistId : String
+  - createdAt : Date
+  + verifyEmail() : Boolean
+  + changePassword(newPass: String) : void
+  + updateStatus(newStatus: String) : void
+}
+
+class Profile {
+  - id : String
+  - firstName : String
+  - lastName : String
+  - sex : String
+  - heightCm : Double
+  - weightKg : Double
+  - primaryGoal : GoalType
+  - activityLevel : String
+  + calculateTDEE() : Double
+  + updateMetrics(weight: Double, height: Double) : void
+  + getFullName() : String
+}
+
+class BodyMeasurement {
+  - id : String
+  - date : Date
+  - weight : Double
+  - bodyFatPercentage : Double
+  - waistCircumference : Double
+  - hipCircumference : Double
+  + calculateWHR() : Double
+  + getFatMass() : Double
+}
+
+class ExerciseLibrary {
+  - id : String
+  - name : String
+  - primaryMuscle : MuscleType
+  - mechanic : String
+  - equipment : String
+  - status : String
+  + activate() : void
+  + deactivate() : void
+}
+
+class TrainingProgram {
+  - id : String
+  - name : String
+  - description : String
+  - goal : GoalType
+  - level : String
+  - status : String
+  - createdAt : Date
+  + addExercise(exerciseId: String) : void
+  + removeExercise(exerciseId: String) : void
+  + archive() : void
+}
+
+class ProgramAssignment {
+  - id : String
+  - status : String
+  - startDate : Date
+  - endDate : Date
+  + markAsCompleted() : void
+  + cancelAssignment() : void
+}
+
+class WorkoutSession {
+  - id : String
+  - name : String
+  - type : String
+  - status : SessionStatus
+  - startedAt : Date
+  - finishedAt : Date
+  - durationMinutes : Integer
+  + startSession() : void
+  + endSession() : void
+  + calculateTotalVolume() : Double
+}
+
+class SessionExercise {
+  - exerciseName : String
+  - order : Integer
+  + addSet(reps: Integer, weight: Double) : void
+  + removeSet(setNumber: Integer) : void
+}
+
+class PersonalRecord {
+  - id : String
+  - exerciseName : String
+  - maxWeight : Double
+  - reps : Integer
+  - dateAchieved : Date
+  + calculateEstimated1RM() : Double
+}
+
+class NutritionPlan {
+  - id : String
+  - status : String
+  - targetCalories : Integer
+  - targetProtein : Integer
+  - targetCarbs : Integer
+  - targetFats : Integer
+  - startDate : Date
+  + updateMacros(cal: Integer, pro: Integer, car: Integer, fat: Integer) : void
+  + archive() : void
+}
+
+class MealLog {
+  - id : String
+  - date : Date
+  - mealType : String
+  - foodName : String
+  - calories : Integer
+  - protein : Integer
+  - carbs : Integer
+  - fats : Integer
+}
+
+class DashboardCache {
+  - id : String
+  - period : String
+  - workoutsCompleted : Integer
+  - totalVolumeKg : Double
+  - averageCalories : Integer
+  - calculatedAt : Date
+  + refreshMetrics() : void
+}
+
+' ==========================================
+' RELACIONES Y MULTIPLICIDADES
+' ==========================================
+
+' Usuario y sus dependencias directas
+User "1" --> "0..1" Profile : posee >
+User "1" --> "0..*" BodyMeasurement : registra >
+User "1" --> "0..*" WorkoutSession : ejecuta >
+User "1" --> "0..*" MealLog : consume >
+User "1" --> "0..*" PersonalRecord : logra >
+User "1" --> "0..*" DashboardCache : almacena métricas >
+
+' Roles (Coaches y Nutricionistas)
+User "1" --> "0..*" TrainingProgram : crea (como Coach) >
+User "1" --> "0..*" ProgramAssignment : asigna (como Coach) >
+User "1" --> "0..*" NutritionPlan : prescribe (como Nutricionista) >
+
+' El atleta recibe
+User "1" <-- "0..*" ProgramAssignment : se le asigna <
+User "1" <-- "0..*" NutritionPlan : se le asigna <
+
+' Programas de Entrenamiento
+TrainingProgram "1" --> "0..*" ProgramAssignment : instanciado a través de >
+ProgramAssignment "1" --> "0..*" WorkoutSession : genera >
+
+' Composición de Ejercicios en Sesiones
+WorkoutSession "1" *-- "1..*" SessionExercise : se compone de >
+SessionExercise "0..*" --> "1" ExerciseLibrary : hace referencia a >
+TrainingProgram "1" *-- "1..*" ExerciseLibrary : incluye >
+
+@enduml

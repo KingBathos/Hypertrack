@@ -1,0 +1,164 @@
+@startuml Flujo_Entrenador
+title HyperTrack - Diagrama de Flujo: Entrenador (Coach)
+caption Flujo de actividades, decisiones y persistencia del Coach extraído directamente del código fuente.
+
+skinparam BackgroundColor #FFFFFF
+skinparam Shadowing false
+skinparam DefaultFontName "Helvetica", "Arial", sans-serif
+skinparam ActivityFontSize 12
+skinparam ArrowColor #DC2626
+skinparam ActivityBorderColor #18181B
+skinparam ActivityBackgroundColor #F4F4F5
+skinparam ActivityDiamondBorderColor #DC2626
+skinparam ActivityDiamondBackgroundColor #FEF2F2
+skinparam NoteBorderColor #71717A
+skinparam NoteBackgroundColor #FAFAFA
+
+|#FAFAFA|Entrenador (Coach)|
+|#FFFFFF|Frontend / Portal Coach|
+|#FFF7ED|Middleware / Server Actions / API|
+|#FEF2F2|Base de Datos (MongoDB)|
+
+|Entrenador (Coach)|
+start
+:Inicia sesión en la plataforma (/login);
+
+|Middleware / Server Actions / API|
+:Edge Middleware (src/proxy.ts);
+:Verifica token JWT en cookie 'ht_session';
+if (¿Rol == COACH o ADMIN?) then (No)
+  :Redirige a /dashboard;
+  stop
+else (Sí)
+  :Permite acceso a rutas /coach/*;
+endif
+
+|Frontend / Portal Coach|
+:Carga Roster de Atletas (/coach);
+
+|Base de Datos (MongoDB)|
+:Consulta colección 'users'
+(filtra role = USER y coachId = session.sub);
+:Ejecuta Aggregation Pipeline sobre 'workout_sessions' (28 días):
+- Agrupa por cliente y suma totalVolume en kg
+- Calcula 1RM máximo estimado en Bench Press (Epley)
+- Calcula 1RM máximo estimado en Squat (Epley)
+- Calcula 1RM máximo estimado en Deadlift (Epley);
+
+|Frontend / Portal Coach|
+:Renderiza pantalla del Roster:
+- Muestra ID Público de Coach (session.sub) para vinculación
+- Renderiza tarjetas de atletas con carga de 4 semanas, estado y 1RMs
+- Botón '+ CONSTRUCTOR DE PROGRAMAS'
+- Botón 'ASIGNAR PROGRAMA' por cada atleta;
+
+|Entrenador (Coach)|
+:Selecciona operación a realizar;
+
+if (¿Qué operación desea realizar?) then (Constructor de Programas)
+  :Ingresa al Constructor (/coach/programs/new);
+
+  |Middleware / Server Actions / API|
+  :Invoca getExercises() (actions/workout.ts);
+  |Base de Datos (MongoDB)|
+  :Recupera catálogo de 'exercise_library';
+
+  |Frontend / Portal Coach|
+  :Renderiza ProgramBuilder con lista de ejercicios;
+
+  |Entrenador (Coach)|
+  :Ingresa Nombre del Programa (ej. 'EJECUTOR');
+  :Selecciona Objetivo (ej. HYPERTROPHY) y Nivel (ej. INTERMEDIATE);
+  :Añade ejercicios definiendo orden, targetSets, targetReps, targetRpe y restSeconds;
+  :Envía formulario de creación de programa;
+
+  |Middleware / Server Actions / API|
+  :Ejecuta Server Action createTrainingProgram(data);
+  :Verifica sesión y rol (COACH o ADMIN);
+  :Genera identificador semántico prg_[ULID];
+
+  |Base de Datos (MongoDB)|
+  :Inserta documento en colección 'training_programs'
+  con publicId, authorId = coach._id, name, description, goal, level,
+  exercises array, status ACTIVE y audit;
+
+  |Middleware / Server Actions / API|
+  :Revalida ruta /coach (revalidatePath);
+  |Frontend / Portal Coach|
+  :Muestra confirmación y retorna al Roster;
+
+elseif (Telemetría y Asignación) then (Asignar)
+  :Selecciona atleta del roster (/coach/assign-program/[clientId]);
+
+  |Base de Datos (MongoDB)|
+  :Carga datos del atleta (users) y programas creados (training_programs);
+  :Recupera sesiones de últimos 30 días de 'workout_sessions';
+
+  |Middleware / Server Actions / API|
+  :Procesa telemetría muscular del cliente:
+  - Agrupa volumen por categorías: Push, Pull, Legs, Core
+  - Mapea frecuencia de fatiga muscular en 30 días
+    (pecho, hombros, bíceps, cuádriceps, pantorrillas, abdomen);
+
+  |Frontend / Portal Coach|
+  :Renderiza Dashboard de Telemetría del Atleta:
+  - Gráfica de Radar StatRadar (X-Ray muscular)
+  - Silueta anatómica SVG MuscleHeatmap con pulso rojo en músculos activos
+  - Selector de programas maestros de su autoría (radio buttons);
+
+  |Entrenador (Coach)|
+  :Analiza fatiga muscular y selecciona el Programa Maestro;
+  :Pulsa botón 'ASIGNAR A CLIENTE';
+
+  |Middleware / Server Actions / API|
+  :Ejecuta Server Action assignProgramToClient(clientId, programPublicId);
+  :Verifica permisos del coach;
+
+  |Base de Datos (MongoDB)|
+  :Actualiza asignaciones previas activas en 'program_assignments'
+  a status = COMPLETED con endDate actual;
+  :Inserta nueva asignación activa en 'program_assignments'
+  con publicId asn_[ULID], clientId, coachId, programVersionId, status ACTIVE y startDate;
+
+  |Middleware / Server Actions / API|
+  :Invoca logSecurityAction():
+  Registra evento en 'audit_logs' (action: ASSIGN_PROGRAM, actorId, targetId, details);
+  :Revalida rutas /dashboard y /coach/assign-program/[clientId];
+
+  |Frontend / Portal Coach|
+  :Muestra confirmación de asignación exitosa;
+
+else (Feedback en Sesiones)
+  :Revisa entrenamientos ejecutados del atleta (/workout/history);
+  |Base de Datos (MongoDB)|
+  :Consulta sesiones en 'workout_sessions';
+
+  |Entrenador (Coach)|
+  :Redacta corrección técnica o feedback;
+
+  |Middleware / Server Actions / API|
+  :POST /api/workouts/[id]/comments;
+  :Valida commentSchema (máx 1000 caracteres);
+
+  |Base de Datos (MongoDB)|
+  :Inserta comentario en array workout_sessions.comments
+  con authorPublicId, role = COACH, text y createdAt;
+
+  |Frontend / Portal Coach|
+  :Actualiza hilo interactivo de comentarios;
+endif
+
+|Entrenador (Coach)|
+if (¿Desea cerrar sesión?) then (Sí)
+  :Pulsa Cerrar Sesión en Navbar;
+  |Middleware / Server Actions / API|
+  :POST /api/auth/logout;
+  |Frontend / Portal Coach|
+  :Redirige a /login;
+  stop
+else (No)
+  :Continúa en el Portal del Entrenador;
+  stop
+endif
+
+@enduml

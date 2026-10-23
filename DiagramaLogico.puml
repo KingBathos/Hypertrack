@@ -10,7 +10,7 @@ skinparam AttributeFontColor #D4D4D8
 skinparam ArrowColor #71717A
 skinparam BackgroundColor #09090B
 
-title Diseño Lógico — Base de Datos HyperTrack (MongoDB)\n19 Colecciones · NoSQL Document Store
+title Diseño Lógico — Base de Datos HyperTrack (MongoDB)\n17 Colecciones · NoSQL Document Store
 
 ' ══════════════════════════════════════════════════
 ' ENTIDADES PRINCIPALES (con datos reales)
@@ -36,6 +36,8 @@ entity "users" as U {
   account.timezone : String ("America/Lima")
   --
   * role : Enum("USER","COACH","NUTRITIONIST","ADMIN")
+  coachId : String (ref users.publicId)
+  nutritionistId : String (ref users.publicId)
   --
   metadata.schemaVersion : Number
   metadata.source : String ("web")
@@ -141,26 +143,6 @@ entity "training_programs" as TP {
   audit.createdBy : ObjectId
 }
 
-entity "workout_programs" as WP {
-  * _id : ObjectId <<PK>>
-  --
-  * name : String
-  * authorId : String (ref users.publicId)
-  * clientId : String (ref users.publicId)
-  * status : Enum("ACTIVE","INACTIVE","ARCHIVED")
-  * assignedDays : Array<Enum("MONDAY".."SUNDAY")>
-  --
-  * exercises : Array<ExerciseDoc> <<Embedded>>
-  .. exercises[].exerciseName : String ..
-  .. exercises[].sets[] : Array<SetDoc> ..
-  .. exercises[].sets[].setNumber : Number ..
-  .. exercises[].sets[].reps : Number ..
-  .. exercises[].sets[].weight : Number ..
-  .. exercises[].sets[].unit : Enum("KG","LBS") ..
-  --
-  * createdAt : Date
-  * updatedAt : Date
-}
 
 entity "program_assignments" as PA {
   * _id : ObjectId <<PK>>
@@ -168,7 +150,7 @@ entity "program_assignments" as PA {
   --
   * clientId : ObjectId <<FK -> users>>
   * coachId : ObjectId <<FK -> users>>
-  * programVersionId : ObjectId <<FK -> training_programs>>
+  * programId : ObjectId <<FK -> training_programs>>
   --
   * status : Enum("ACTIVE","COMPLETED","CANCELLED")
   * startDate : Date
@@ -179,13 +161,6 @@ entity "program_assignments" as PA {
   audit.createdBy : ObjectId
 }
 
-entity "program_versions" as PV {
-  * _id : ObjectId <<PK>>
-  --
-  (Colección vacía — reservada
-  para versionado futuro
-  de programas de entrenamiento)
-}
 
 entity "workout_sessions" as WS {
   * _id : ObjectId <<PK>>
@@ -225,8 +200,8 @@ entity "personal_records" as PR {
   --
   * exerciseId : String
   * exerciseName : String
-  * maxWeight : String
-  * maxWeightReps : String
+  * maxWeight : Number
+  * maxWeightReps : Number
   * maxWeightUnit : Enum("KG","LBS")
   estimated1RM : Number
   * dateAchieved : Date
@@ -258,15 +233,14 @@ entity "meal_logs" as ML {
   * _id : ObjectId <<PK>>
   * userId : ObjectId <<FK -> users>>
   --
-  * loggedAt : Date
+  * date : Date
   * mealType : Enum("BREAKFAST","LUNCH","DINNER","SNACK")
+  * foodName : String
   --
-  * nutrition.calories : Number
-  * nutrition.protein : Number
-  * nutrition.carbs : Number
-  * nutrition.fats : Number
-  nutrition.fiber : Number
-  nutrition.hydrationLiters : Number
+  * calories : Number
+  * macros.protein : Number
+  * macros.carbs : Number
+  * macros.fats : Number
 }
 
 entity "dashboard_cache" as DC {
@@ -375,7 +349,6 @@ U ||--o{ DC : "1:N Cachea métricas"
 
 ' --- Entrenador crea programas ---
 U ||--o{ TP : "1:N Crea (como Coach)"
-U ||--o{ WP : "1:N Crea rutinas"
 
 ' --- Asignaciones ---
 U ||--o{ PA : "1:N Recibe asignaciones"

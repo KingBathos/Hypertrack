@@ -1,0 +1,158 @@
+@startuml Flujo_Administrador
+title HyperTrack - Diagrama de Flujo: Administrador (Admin)
+caption Flujo de actividades, decisiones y persistencia del Administrador extraído directamente del código fuente.
+
+skinparam BackgroundColor #FFFFFF
+skinparam Shadowing false
+skinparam DefaultFontName "Helvetica", "Arial", sans-serif
+skinparam ActivityFontSize 12
+skinparam ArrowColor #DC2626
+skinparam ActivityBorderColor #18181B
+skinparam ActivityBackgroundColor #F4F4F5
+skinparam ActivityDiamondBorderColor #DC2626
+skinparam ActivityDiamondBackgroundColor #FEF2F2
+skinparam NoteBorderColor #71717A
+skinparam NoteBackgroundColor #FAFAFA
+
+|#FAFAFA|Administrador|
+|#FFFFFF|Frontend / Centro de Comando|
+|#FFF7ED|Middleware / Server Actions|
+|#FEF2F2|Base de Datos (MongoDB)|
+
+|Administrador|
+start
+:Inicia sesión en /login;
+
+|Middleware / Server Actions|
+:Edge Middleware (src/proxy.ts);
+:Verifica token JWT en cookie 'ht_session';
+if (¿Rol == ADMIN?) then (No)
+  :Redirige a /dashboard;
+  stop
+else (Sí)
+  :Permite acceso irrestricto a /admin/*
+  (y supervisión de /coach/* y /nutritionist/*);
+endif
+
+|Frontend / Centro de Comando|
+:Carga Centro de Comando (/admin);
+
+|Base de Datos (MongoDB)|
+:Ejecuta 5 consultas concurrentes en paralelo:
+1. users.countDocuments(role = USER)
+2. workouts.aggregate() -> Suma total de kilos levantados
+3. nutrition_plans.countDocuments(status = ACTIVE)
+4. users.find() ordenado por audit.createdAt desc
+5. audit_logs.find() últimos 10 logs de seguridad;
+
+|Frontend / Centro de Comando|
+:Renderiza Centro de Comando:
+- Métricas Superiores: Atletas Activos, Kilos Levantados, Planes Vigentes
+- Botón '+ GESTIONAR EJERCICIOS' (/admin/exercises)
+- Tabla de Gestión de Personal y Clientes (Email, ID Público, Rol, Estado)
+- Consola del Radar de Auditoría en Vivo;
+
+|Administrador|
+:Selecciona operación administrativa a ejecutar;
+
+if (¿Qué operación desea realizar?) then (Gestión de Roles)
+  :Localiza usuario en la tabla de personal;
+  :Selecciona nuevo rol en menú desplegable:
+  USER, COACH, NUTRITIONIST o ADMIN;
+  :Pulsa botón 'APLICAR';
+
+  |Middleware / Server Actions|
+  :Ejecuta Server Action updateUserRole(userId, formData);
+  :Verifica sesión activa y rol ADMIN;
+  if (¿Rol pertenece al enum válido?) then (No)
+    :Lanza error 'Invalid role';
+    stop
+  else (Sí)
+    |Base de Datos (MongoDB)|
+    :Actualiza colección 'users':
+    updateOne(publicId = userId, role = newRole);
+    |Middleware / Server Actions|
+    :Revalida ruta /admin (revalidatePath);
+    |Frontend / Centro de Comando|
+    :Refresca la tabla mostrando el nuevo rol y badge del usuario;
+  endif
+
+elseif (Auditoría Forense) then (Auditoría)
+  |Frontend / Centro de Comando|
+  |Base de Datos (MongoDB)|
+  :Lee colección 'audit_logs';
+  |Frontend / Centro de Comando|
+  :Muestra registros estructurados:
+  - Timestamp UTC (ISO)
+  - ACTOR: publicId del usuario que ejecutó la acción
+  - ACTION: tipo de evento (ej: ASSIGN_PROGRAM)
+  - TARGET: ObjectId o publicId del recurso afectado
+  - DETAILS: metadatos JSON (programId, programName);
+  |Administrador|
+  :Audita trazabilidad y seguridad del sistema;
+
+elseif (Biblioteca de Ejercicios) then (Ejercicios)
+  |Frontend / Centro de Comando|
+  :Navega a /admin/exercises;
+  |Base de Datos (MongoDB)|
+  :Carga documentos de 'exercise_library' ordenados por createdAt desc;
+  |Frontend / Centro de Comando|
+  :Renderiza catálogo actual con nombre, músculo, equipo y mecánica;
+
+  |Administrador|
+  if (¿Desea Añadir o Eliminar Ejercicio?) then (Añadir)
+    :Completa formulario 'AÑADIR NUEVO EJERCICIO':
+    - Nombre del ejercicio
+    - Músculo Principal (CHEST, BACK, LEGS, SHOULDERS, etc.)
+    - Mecánica (COMPOUND, ISOLATION, ISOMETRIC)
+    - Equipamiento (BARBELL, DUMBBELL, MACHINE, CABLE, etc.);
+    :Pulsa '+ REGISTRAR EJERCICIO EN BD';
+
+    |Middleware / Server Actions|
+    :Ejecuta Server Action addExercise(formData);
+    :Verifica privilegios ADMIN;
+    :Genera publicId semántico exe_[ULID];
+    |Base de Datos (MongoDB)|
+    :Inserta documento en colección 'exercise_library'
+    con publicId, name, primaryMuscle, mechanic, equipment, status ACTIVE y audit;
+    |Middleware / Server Actions|
+    :Revalida ruta /admin/exercises;
+    |Frontend / Centro de Comando|
+    :Actualiza catálogo con el nuevo ejercicio disponible globalmente;
+  else (Eliminar)
+    |Administrador|
+    :Localiza ejercicio en la tabla y pulsa 'ELIMINAR';
+    |Middleware / Server Actions|
+    :Ejecuta Server Action deleteExercise(publicId);
+    :Verifica privilegios ADMIN;
+    |Base de Datos (MongoDB)|
+    :Elimina documento: deleteOne(publicId = publicId);
+    |Middleware / Server Actions|
+    :Revalida ruta /admin/exercises;
+    |Frontend / Centro de Comando|
+    :Remueve el ejercicio del catálogo;
+  endif
+
+else (Supervisión)
+  |Frontend / Centro de Comando|
+  :Navega directamente a /coach o /nutritionist;
+  |Middleware / Server Actions|
+  :Middleware permite acceso al ADMIN por jerarquía de permisos;
+  |Frontend / Centro de Comando|
+  :Inspecciona asignaciones, telemetría y protocolos de cualquier profesional;
+endif
+
+|Administrador|
+if (¿Desea cerrar sesión?) then (Sí)
+  :Pulsa Cerrar Sesión en Navbar;
+  |Middleware / Server Actions|
+  :POST /api/auth/logout;
+  |Frontend / Centro de Comando|
+  :Redirige a /login;
+  stop
+else (No)
+  :Permanece en el Centro de Comando;
+  stop
+endif
+
+@enduml

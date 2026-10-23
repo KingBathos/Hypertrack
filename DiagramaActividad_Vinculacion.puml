@@ -1,0 +1,28 @@
+@startuml DiagramaActividad_Vinculacion
+title 4. Vinculación atleta-profesional
+caption Nota: Proceso mediante el cual un atleta se asocia con su entrenador o nutricionista, habilitando el acceso del ...
+
+|Atleta|
+start
+repeat
+  :Selecciona su entrenador o nutricionista;
+
+|Sistema|
+  :Valida el rol;
+  if (¿Rol válido?) then (No)
+    :Muestra error;
+    :Requiere nueva selección;
+  else (Sí)
+    :Guarda coachId o nutritionistId en el usuario;
+    note right
+      Almacén de datos
+    end note
+    :Registra en audit_logs;
+    break
+  endif
+repeat while
+
+|Profesional|
+:El atleta aparece en su roster;
+stop
+@enduml

@@ -1,0 +1,296 @@
+@startuml Flujo_Usuario
+title HyperTrack - Diagrama de Flujo: Usuario (Atleta)
+caption Flujo de actividades, decisiones y persistencia del Atleta extraído directamente del código fuente.
+
+skinparam BackgroundColor #FFFFFF
+skinparam Shadowing false
+skinparam DefaultFontName "Helvetica", "Arial", sans-serif
+skinparam ActivityFontSize 12
+skinparam ArrowColor #DC2626
+skinparam ActivityBorderColor #18181B
+skinparam ActivityBackgroundColor #F4F4F5
+skinparam ActivityDiamondBorderColor #DC2626
+skinparam ActivityDiamondBackgroundColor #FEF2F2
+skinparam NoteBorderColor #71717A
+skinparam NoteBackgroundColor #FAFAFA
+
+|#FAFAFA|Atleta (Cliente)|
+|#FFFFFF|Frontend / UI|
+|#FFF7ED|Middleware / Server Actions / API|
+|#FEF2F2|Base de Datos (MongoDB)|
+
+|Atleta (Cliente)|
+start
+:Accede a la plataforma web;
+
+|Frontend / UI|
+if (¿Posee sesión activa?) then (No)
+  |Atleta (Cliente)|
+  if (¿Tiene cuenta registrada?) then (No)
+    :Completa formulario en /register
+    (Email, Contraseña, Confirmación);
+    |Frontend / UI|
+    :Valida con Zod registerFormSchema
+    (Email válido, >= 8 chars, 1 mayúscula, 1 número);
+    |Middleware / Server Actions / API|
+    :POST /api/auth/register;
+    |Base de Datos (MongoDB)|
+    :Verifica unicidad por email.normalized;
+    if (¿Email ya existe?) then (Sí)
+      |Frontend / UI|
+      :Muestra error 409 (EMAIL_ALREADY_EXISTS);
+      stop
+    else (No)
+      |Middleware / Server Actions / API|
+      :Hashea contraseña con Argon2id;
+      :Genera publicId usr_[ULID];
+      |Base de Datos (MongoDB)|
+      :Inserta en colección 'users'
+      (account.status = PENDING_VERIFICATION);
+      |Middleware / Server Actions / API|
+      :Firma JWT nativo (crypto.subtle, HS256)
+      y setea cookie HTTP-only 'ht_session';
+    endif
+  else (Sí)
+    :Ingresa credenciales en /login;
+    |Middleware / Server Actions / API|
+    :POST /api/auth/login;
+    |Base de Datos (MongoDB)|
+    :Busca usuario por email.normalized;
+    if (¿Usuario existe?) then (No)
+      |Middleware / Server Actions / API|
+      :Aplica delay de 300ms (Anti-Timing Attack);
+      |Frontend / UI|
+      :Muestra error 401 (Credenciales inválidas);
+      stop
+    else (Sí)
+      |Base de Datos (MongoDB)|
+      if (¿Cuenta bloqueada o suspendida?) then (Sí)
+        |Frontend / UI|
+        :Muestra error 403 (ACCOUNT_LOCKED);
+        stop
+      else (No)
+        |Middleware / Server Actions / API|
+        :Verifica hash con argon2.verify();
+        if (¿Contraseña correcta?) then (No)
+          |Base de Datos (MongoDB)|
+          :Incrementa authentication.failedAttempts (+1);
+          |Frontend / UI|
+          :Muestra error 401;
+          stop
+        else (Sí)
+          |Base de Datos (MongoDB)|
+          :Resetea failedAttempts = 0 y actualiza lastLoginAt;
+          |Middleware / Server Actions / API|
+          :Genera JWT y emite cookie 'ht_session';
+        endif
+      endif
+    endif
+  endif
+else (Sí)
+endif
+
+|Middleware / Server Actions / API|
+:Edge Middleware (src/proxy.ts)
+Valida JWT y rol USER;
+
+|Base de Datos (MongoDB)|
+:Verifica existencia de perfil en colección 'profiles';
+
+if (¿Tiene perfil completado?) then (No)
+  |Frontend / UI|
+  :Redirige a /onboarding (Stepper de 5 pasos);
+  |Atleta (Cliente)|
+  :Paso 1: Nombre y Apellido (sin números ni @$*)
+  :Paso 2: Sexo y Fecha de Nacimiento (13 - 120 años)
+  :Paso 3: Teléfono E.164, Altura (50-300cm) y Peso (20-500kg);
+  |Middleware / Server Actions / API|
+  :Invoca checkPhoneExists(phone);
+  |Base de Datos (MongoDB)|
+  if (¿Teléfono ya registrado en otra cuenta?) then (Sí)
+    |Frontend / UI|
+    :Muestra error de validación en Paso 3;
+    stop
+  else (No)
+    |Atleta (Cliente)|
+    :Paso 4: Objetivo Primario y Sistema Métrico/Imperial
+    :Paso 5: Nivel de Actividad PAL, Experiencia, Frecuencia y Sueño;
+    |Middleware / Server Actions / API|
+    :Ejecuta Server Action saveOnboardingProfile();
+    :Genera publicId prf_[ULID] y displayName;
+    |Base de Datos (MongoDB)|
+    :Inserta documento en colección 'profiles'
+    vinculado a users._id (ObjectId);
+  endif
+else (Sí)
+endif
+
+|Frontend / UI|
+:Renderiza Hub Central (/dashboard);
+|Atleta (Cliente)|
+:Visualiza telemetría en Dashboard:
+- HUD: Racha activa, Tonelaje mensual, Sesiones 30d, Recuperación
+- Salón de la Fama (Top 5 PRs personales con medallas)
+- Gráfico Radar X-Ray (Push, Pull, Legs, Core)
+- 3 Pilares: Biometría, Motor de Entrenamiento y Nutrición;
+
+|Atleta (Cliente)|
+:Selecciona módulo o acción a realizar;
+
+if (¿Qué acción desea realizar?) then (Biometría)
+  :Actualizar Medidas Corporales;
+  |Frontend / UI|
+  :Abre modal BiometricsUpdater;
+  |Atleta (Cliente)|
+  :Ingresa Peso actual y opcionalmente:
+  - % Grasa Corporal
+  - Circunferencias (Cintura, Cadera, Pecho, Brazo, Muslo, Pantorrilla);
+  |Middleware / Server Actions / API|
+  :Server Action logBiometrics();
+  :Valida con biometricsSchema;
+  if (¿Ingresó Cintura y Cadera?) then (Sí)
+    :Calcula automáticamente:
+    waistToHipRatio = round(waist / hip, 2);
+  endif
+  |Base de Datos (MongoDB)|
+  :Inserta documento en 'body_measurements' (mes_[ULID]);
+  :Actualiza physical.weightKg y % grasa en 'profiles';
+  |Frontend / UI|
+  :Revalida caché (/dashboard y /profile);
+
+elseif (Entrenamiento en Vivo) then (Entrenar)
+  |Frontend / UI|
+  if (¿Inicia desde Programa Asignado?) then (Sí)
+    :Navega a /workout/live?mode=program;
+    |Middleware / Server Actions / API|
+    :GET /api/routines/today;
+    |Base de Datos (MongoDB)|
+    :Busca rutina en 'workout_programs' asignada a hoy;
+    |Middleware / Server Actions / API|
+    :Ejecuta applyAutoProgression():
+    - Si RPE promedio previo <= 7 -> OVERLOAD (+2.5 kg)
+    - Si RPE promedio previo >= 9.5 -> DELOAD (-2.5 kg);
+    |Frontend / UI|
+    :Precarga ejercicios, series y pesos sugeridos;
+  else (No)
+    :Navega a /workout/live (Modo Libre);
+    |Frontend / UI|
+    :Inicializa tabla en blanco;
+  endif
+
+  |Atleta (Cliente)|
+  repeat
+    :Ingresa o añade Ejercicio;
+    |Frontend / UI|
+    :Consulta GET /api/workouts/history/latest;
+    :Muestra badge contextual: 'ÚLTIMA VEZ: peso x reps (fecha)';
+    |Atleta (Cliente)|
+    :Registra serie (Peso, Unidad KG/LBS, Reps, RPE);
+    :Pulsa botón 'Completar y Descansar' (✓);
+    |Frontend / UI|
+    :Inicia temporizador SVG circular de 90 segundos;
+    :Cambia barra superior a estado 'RECUPERACIÓN';
+    if (¿Atleta pulsa 'SALTAR' o expira tiempo?) then (Expiró / Saltó)
+      :Emite alerta visual flash y audio feedback;
+      :Restaura estado a 'ENTRENANDO';
+    endif
+    :Actualiza contador holográfico de Volumen Total;
+  repeat while (¿Desea registrar más series o ejercicios?) is (Sí)
+
+  |Atleta (Cliente)|
+  :Pulsa 'FINALIZAR ENTRENAMIENTO';
+  |Middleware / Server Actions / API|
+  :Server Action logWorkoutSession();
+  :Calcula durationMinutes = round((end - start) / 60000);
+  :Ejecuta calculateAndMarkPRs():
+  - Convierte LBS a KG si aplica (* 0.453592)
+  - Calcula 1RM Epley = peso * (1 + reps/30)
+  - Si supera récord previo -> isPR = true, suma prsBroken;
+  |Base de Datos (MongoDB)|
+  :Upsert en colección 'personal_records';
+  :Inserta documento en 'workout_sessions' (wks_[ULID]);
+  :Calcula XP ganado = floor(volumenTotal * 0.1);
+  :Incrementa profiles.totalXp y profiles.lifetimeVolume;
+  |Frontend / UI|
+  :Redirige al Dashboard con revalidación de ruta;
+
+elseif (Bitácora de Sesiones) then (Historial)
+  :Consultar Bitácora de Combate (/workout/history);
+  |Base de Datos (MongoDB)|
+  :Recupera historial desde 'workout_sessions';
+  |Frontend / UI|
+  :Renderiza sesiones desplegables con badges de PRs y mapa muscular SVG;
+  |Atleta (Cliente)|
+  if (¿Desea comentar una sesión?) then (Sí)
+    :Escribe comentario en SessionComments;
+    |Middleware / Server Actions / API|
+    :POST /api/workouts/[id]/comments;
+    :Valida texto con commentSchema (máx 1000 chars);
+    |Base de Datos (MongoDB)|
+    :Push de comentario en workout_sessions.comments;
+    |Frontend / UI|
+    :Actualiza hilo de comentarios en tiempo real;
+  endif
+
+elseif (Nutrición y Comidas) then (Comidas)
+  :Registrar Ingesta de Alimentos;
+  |Frontend / UI|
+  :Abre MealLogger (/dashboard) o MealTracker (/nutrition);
+  |Atleta (Cliente)|
+  :Ingresa Alimento, Momento (Desayuno/Almuerzo/Cena/Snack), Calorías y Macros;
+  |Middleware / Server Actions / API|
+  :POST /api/nutrition/log;
+  :Valida esquema con mealLogSchema;
+  |Base de Datos (MongoDB)|
+  :Inserta documento en colección 'meal_logs' (mlg_[ULID], UTC);
+  |Frontend / UI|
+  :Actualiza anillos concéntricos MacroRings y gráficos de 7 días;
+
+elseif (Vincular Profesionales) then (Equipo)
+  :Gestionar Perfil y Equipo (/profile);
+  |Base de Datos (MongoDB)|
+  :Carga datos de usuario y profesionales vinculados;
+  |Atleta (Cliente)|
+  if (¿Desea vincular o desvincular profesional?) then (Sí)
+    :Ingresa ID público (usr_...) de Coach o Nutricionista
+    (o deja vacío para desvincular);
+    |Middleware / Server Actions / API|
+    :Server Action linkProfessional();
+    if (¿Se proporcionó ID?) then (Sí)
+      |Base de Datos (MongoDB)|
+      :Valida existencia del usuario y coincidencia de rol;
+      :Actualiza users.coachId o users.nutritionistId;
+    else (No)
+      |Base de Datos (MongoDB)|
+      :Aplica $unset sobre coachId o nutritionistId;
+    endif
+    |Frontend / UI|
+    :Revalida vista de /profile con nuevo estado;
+  endif
+
+else (Plantillas Propias)
+  :Crear Plantilla Propia (/workout/templates/new);
+  |Atleta (Cliente)|
+  :Define nombre, notas, ejercicios, series, reps objetivo y descanso;
+  |Middleware / Server Actions / API|
+  :Server Action createWorkoutTemplate();
+  |Base de Datos (MongoDB)|
+  :Inserta en 'workout_templates' (tpl_[ULID]);
+  |Frontend / UI|
+  :Redirige a /workout;
+endif
+
+|Atleta (Cliente)|
+if (¿Desea cerrar sesión?) then (Sí)
+  :Pulsa botón de Cerrar Sesión en Navbar;
+  |Middleware / Server Actions / API|
+  :POST /api/auth/logout;
+  |Frontend / UI|
+  :Redirige a /login;
+  stop
+else (No)
+  :Permanece en el Dashboard;
+  stop
+endif
+
+@enduml

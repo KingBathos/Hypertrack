@@ -1,6 +1,6 @@
 # Diseño Físico de la Base de Datos - HyperTrack
 
-El siguiente diagrama en **PlantUML** representa el esquema físico de las **19 colecciones** de la base de datos MongoDB local (`HyperTrackb`). En él se detallan los tipos de datos BSON, validaciones de esquema nativas (`$jsonSchema`), e índices (optimizaciones y llaves únicas).
+El siguiente diagrama en **PlantUML** representa el esquema físico de las **17 colecciones** de la base de datos MongoDB local (`HyperTrackb`). En él se detallan los tipos de datos BSON, validaciones de esquema nativas (`$jsonSchema`), e índices (optimizaciones y llaves únicas).
 
 ```plantuml
 @startuml HyperTrack_Physical_Design_Complete
@@ -16,7 +16,7 @@ skinparam noteFontColor #E4E4E7
 skinparam BackgroundColor #09090B
 left to right direction
 
-title Diseño Físico Completo — 19 Colecciones MongoDB (HyperTrackb)
+title Diseño Físico Completo — 17 Colecciones MongoDB (HyperTrackb)
 
 ' ==========================================
 ' 1. USERS & PERFILES
@@ -28,6 +28,8 @@ class "users" <<Collection>> {
   ~ authentication.passwordHash : String <<Argon2id>>
   ~ role : String [Enum]
   ~ account.status : String
+  ~ coachId : String
+  ~ nutritionistId : String
 }
 note right of users
   **Índices:**
@@ -117,28 +119,10 @@ note right of training_programs
   required: ["publicId", "authorId", "name", "goal", "level", "status", "audit"]
 end note
 
-class "workout_programs" <<Collection>> {
-  + _id : ObjectId
-  ~ name : String
-  ~ exercises : Array<Object>
-}
-note right of workout_programs
-  **Índices:**
-  - _id_
-end note
-
-class "program_versions" <<Collection>> {
-  + _id : ObjectId
-}
-note right of program_versions
-  **Índices:**
-  - _id_
-end note
-
 class "program_assignments" <<Collection>> {
   + _id : ObjectId
   ~ clientId : ObjectId
-  ~ programVersionId : ObjectId
+  ~ programId : ObjectId
   ~ status : String
 }
 note right of program_assignments
@@ -146,7 +130,7 @@ note right of program_assignments
   - _id_
   - idx_client_assignment_status
   **Validación ($jsonSchema):**
-  required: ["publicId", "clientId", "programVersionId", "status", "startDate", "audit"]
+  required: ["publicId", "clientId", "programId", "status", "startDate", "audit"]
 end note
 
 class "workout_sessions" <<Collection>> {
@@ -169,7 +153,9 @@ class "personal_records" <<Collection>> {
   + _id : ObjectId
   ~ clientId : ObjectId
   ~ exerciseName : String
-  ~ maxWeight : String
+  ~ maxWeight : Double
+  ~ maxWeightReps : Integer
+  ~ estimated1RM : Double
 }
 note right of personal_records
   **Índices:**
@@ -194,16 +180,19 @@ end note
 
 class "meal_logs" <<Collection>> {
   + _id : ObjectId
-  ~ clientId : ObjectId
-  ~ logDate : Date
-  ~ totals : Object
+  ~ userId : ObjectId
+  ~ date : Date
+  ~ mealType : String
+  ~ foodName : String
+  ~ calories : Double
+  ~ macros : Object
 }
 note right of meal_logs
   **Índices:**
   - _id_
-  - idx_unique_client_daily_log <<UNIQUE>>
+  - idx_user_meals {userId, date: -1}
   **Validación ($jsonSchema):**
-  required: ["publicId", "clientId", "logDate", "totals", "meals", "audit"]
+  required: ["publicId", "userId", "date", "mealType", "foodName", "calories", "macros", "audit"]
 end note
 
 ' ==========================================

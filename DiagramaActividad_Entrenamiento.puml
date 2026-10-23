@@ -1,0 +1,30 @@
+@startuml DiagramaActividad_Entrenamiento
+title 2. Registro de entrenamiento en vivo
+caption Nota: Proceso donde el atleta documenta un entrenamiento en tiempo real, validado y almacenado en la base de datos.
+
+|Atleta|
+start
+:Inicia sesión de entrenamiento;
+repeat
+  :Ingresa ejercicio, series y repeticiones;
+  :Registra peso y RPE;
+
+|Sistema|
+  :Valida datos;
+  if (¿Datos válidos?) then (No)
+    :Devuelve error;
+    :Solicita corrección de datos;
+  else (sí)
+    :Calcula volumen y 1RM;
+    :Guarda en workout_sessions;
+    note right
+      Almacén de datos (Colección)
+    end note
+    break
+  endif
+repeat while
+
+|Atleta|
+:Visualiza volumen y 1RM;
+stop
+@enduml

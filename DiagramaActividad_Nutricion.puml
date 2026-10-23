@@ -1,0 +1,35 @@
+@startuml DiagramaActividad_Nutricion
+title 3. Asignación de plan nutricional
+caption Nota: Interacción tripartita donde el nutricionista asigna el plan, el sistema lo registra, el atleta lo consume ...
+
+|Nutricionista|
+start
+:Selecciona atleta y revisa sus datos;
+repeat
+  :Define calorías y macros;
+
+|Sistema|
+  :Valida datos;
+  if (¿Válidos?) then (No)
+    :Requiere corrección;
+  else (Sí)
+    :Guarda en nutrition_plans;
+    note right
+      Almacén de datos
+    end note
+    :Registra en audit_logs;
+    break
+  endif
+repeat while
+
+|Atleta|
+:Recibe el plan;
+:Registra sus comidas;
+
+|Sistema|
+:Calcula adherencia;
+
+|Nutricionista|
+:Evalúa adherencia;
+stop
+@enduml

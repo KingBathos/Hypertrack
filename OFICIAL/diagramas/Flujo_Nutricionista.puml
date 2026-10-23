@@ -1,0 +1,129 @@
+@startuml Flujo_Nutricionista
+title HyperTrack - Diagrama de Flujo: Nutricionista (Nutritionist)
+caption Flujo de actividades, decisiones y persistencia del Nutricionista extraído directamente del código fuente.
+
+skinparam BackgroundColor #FFFFFF
+skinparam Shadowing false
+skinparam DefaultFontName "Helvetica", "Arial", sans-serif
+skinparam ActivityFontSize 12
+skinparam ArrowColor #DC2626
+skinparam ActivityBorderColor #18181B
+skinparam ActivityBackgroundColor #F4F4F5
+skinparam ActivityDiamondBorderColor #DC2626
+skinparam ActivityDiamondBackgroundColor #FEF2F2
+skinparam NoteBorderColor #71717A
+skinparam NoteBackgroundColor #FAFAFA
+
+|#FAFAFA|Nutricionista|
+|#FFFFFF|Frontend / Portal Nutricionista|
+|#FFF7ED|Middleware / Server Actions / API|
+|#FEF2F2|Base de Datos (MongoDB)|
+
+|Nutricionista|
+start
+:Inicia sesión en la plataforma (/login);
+
+|Middleware / Server Actions / API|
+:Edge Middleware (src/proxy.ts);
+:Verifica token JWT en cookie 'ht_session';
+if (¿Rol == NUTRITIONIST o ADMIN?) then (No)
+  :Redirige a /dashboard;
+  stop
+else (Sí)
+  :Permite acceso a rutas /nutritionist/*;
+endif
+
+|Frontend / Portal Nutricionista|
+:Carga Roster de Atletas (/nutritionist);
+
+|Base de Datos (MongoDB)|
+:Consulta colección 'users'
+(filtra role = USER y nutritionistId = session.sub);
+
+|Frontend / Portal Nutricionista|
+:Renderiza pantalla del Roster
+- Muestra su ID Público de Nutricionista (session.sub) para vinculación
+- Lista tarjetas de atletas asignados con email y publicId
+- Muestra botón 'ESTABLECER MACROS' por cada atleta;
+
+|Nutricionista|
+:Selecciona un atleta del roster (/nutritionist/[clientId]);
+
+|Base de Datos (MongoDB)|
+:Recupera expediente del cliente en paralelo:
+- Perfil ('profiles'): peso, altura, fecha nacimiento, sexo, estilo de vida
+- Últimas circunferencias corporales ('body_measurements')
+- Plan nutricional vigente ('nutrition_plans' con status = ACTIVE)
+- Historial de peso completo ('body_measurements.weight')
+- Registro de comidas de últimos 7 días ('meal_logs')
+- Sesiones de entrenamiento de últimos 30 días ('workout_sessions');
+
+|Middleware / Server Actions / API|
+:Ejecuta Motor Clínico de Cálculo:
+1. BMR (Tasa Metabólica Basal) - Mifflin-St Jeor:
+   * Hombre: 10*peso + 6.25*altura - 5*edad + 5
+   * Mujer: 10*peso + 6.25*altura - 5*edad - 161
+2. TDEE Real = BMR * Multiplicador PAL (1.2 a 1.9)
+3. Proyección de metas calóricas:
+   * Déficit (-500 kcal) | Mantenimiento (TDEE) | Superávit (+300 kcal)
+4. Ratio Cintura/Cadera (waistToHipRatio):
+   * Evaluación de riesgo cardiovascular según sexo
+5. Adherencia de 7 días:
+   * Promedios de Kcal, Proteínas, Carbos y Grasas
+   * % Adherencia = max(0, 100 - abs(avgCal - targetCal)/targetCal * 100);
+
+|Frontend / Portal Nutricionista|
+:Renderiza Ficha Técnica Metabólica:
+- Header con BMR, TDEE Real y % Adherencia global
+- Fila de Composición Corporal: Peso, Altura, Edad, Grasa % y delta peso
+- Fila de Contexto: Nivel actividad, Sueño, Estrés, Frecuencia y Ratio C/C
+- Mediciones de Circunferencias: Cintura, Cadera, Pecho, Brazo, Muslo, Pantorrilla
+- Tarjeta del Protocolo Nutricional Activo
+- Gráfica de Evolución de Peso (WeightChart)
+- Gráfica Radial de Adherencia a Macros (MacroRadialChart)
+- Gráfica de Barras Apiladas de Desglose Calórico 7d (MacroStackedChart)
+- Métricas cruzadas de gimnasio (sesiones, volumen 30d, PRs 30d)
+- Tabla de auditoría con las últimas 50 comidas registradas por el cliente;
+
+|Nutricionista|
+if (¿Desea formular o actualizar el Protocolo Nutricional?) then (Sí)
+  :Completa formulario 'NUEVO / ACTUALIZAR PROTOCOLO':
+  - Calorías diarias totales (dailyCalories)
+  - Proteínas en gramos (protein)
+  - Carbohidratos en gramos (carbs)
+  - Grasas en gramos (fats);
+  :Pulsa 'ESTABLECER PROTOCOLO NUTRICIONAL';
+
+  |Middleware / Server Actions / API|
+  :Ejecuta Server Action setNutritionProtocol(clientId, formData);
+  :Verifica sesión y rol (NUTRITIONIST o ADMIN);
+  :Parsea y valida datos numéricos;
+
+  |Base de Datos (MongoDB)|
+  :Inactiva planes vigentes anteriores
+  (updateMany con status = CANCELLED);
+  :Inserta nuevo protocolo en colección 'nutrition_plans'
+  con publicId nut_[ULID], status ACTIVE, dailyTargets, startDate y audit;
+
+  |Middleware / Server Actions / API|
+  :Revalida rutas /dashboard, /nutrition y /nutritionist/[clientId];
+
+  |Frontend / Portal Nutricionista|
+  :Actualiza la vista con el nuevo protocolo activo;
+else (No)
+endif
+
+|Nutricionista|
+if (¿Desea cerrar sesión?) then (Sí)
+  :Pulsa Cerrar Sesión en Navbar;
+  |Middleware / Server Actions / API|
+  :POST /api/auth/logout;
+  |Frontend / Portal Nutricionista|
+  :Redirige a /login;
+  stop
+else (No)
+  :Continúa navegando en el portal;
+  stop
+endif
+
+@enduml

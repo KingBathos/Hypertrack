@@ -1,0 +1,33 @@
+@startuml DiagramaActividad_Auth
+title 1. Autenticación y enrutamiento por rol
+caption Nota: Flujo de inicio de sesión donde el sistema redirige al usuario a un panel específico según el rol que posee.
+
+|Usuario|
+start
+repeat
+  :Ingresa correo y contraseña;
+
+|Sistema|
+  :Verifica credenciales;
+  if (¿Credenciales válidas?) then (No)
+    :Muestra error;
+    :Retorna para reintento;
+  else (Sí)
+    :Emite JWT;
+    if (¿Qué rol tiene?) then (Atleta)
+      :Muestra panel de atleta;
+    elseif (Entrenador)
+      :Muestra panel de entrenador;
+    elseif (Nutricionista)
+      :Muestra panel de nutricionista;
+    else (Admin)
+      :Muestra panel de admin;
+    endif
+    break
+  endif
+repeat while
+
+|Usuario|
+:Visualiza su panel;
+stop
+@enduml
