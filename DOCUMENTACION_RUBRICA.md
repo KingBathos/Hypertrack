@@ -15,7 +15,7 @@ Este documento detalla cómo la arquitectura de **HyperTrack** implementa y supe
 | **Patrón DAO** | **Capa DAO Orientada a Objetos** con conversión segura BSON y métodos tipados | `src/lib/dao/*.dao.ts` |
 | **Principios SOLID** | **SRP** (Lógica de Dominio Pura) + **DIP** (Abstracción de Persistencia) + **ISP** | `src/lib/domain/`, `src/lib/dao/`, `src/types/` |
 | **Metodología TDD** | **Suite de Pruebas Automatizadas con Vitest** (19 pruebas unitarias pasando) | `src/__tests__/**/*.test.ts`, `npm test` |
-| **Aspectos de Seguridad** | **Web Crypto API (HMAC-SHA256)**, Cookies HttpOnly/SameSite, **Argon2id**, RBAC y Middleware | `src/middleware.ts`, `src/lib/auth/session.ts` |
+| **Aspectos de Seguridad** | **Web Crypto API (HMAC-SHA256)**, Cookies HttpOnly/SameSite, **Argon2id**, RBAC y Proxy Edge | `src/proxy.ts`, `src/lib/auth/session.ts` |
 | **Librerías de Apoyo** | **Homologación TypeScript/Node.js** de librerías empresariales de apoyo | ES2024, Zod, ULID, Web Crypto, AuditDAO |
 | **Git y GitHub** | **Control de versiones con ramas semánticas** y Conventional Commits | Rama `refactor/dao-solid-tdd` |
 
@@ -75,5 +75,5 @@ La rúbrica menciona librerías clásicas del ecosistema **Java**. Al estar desa
 1. **Autenticación sin Dependencias Externas:** Generación de JWT firmado con HMAC-SHA256 (`crypto.subtle` de Web Crypto API).
 2. **Protección de Cookies:** `httpOnly: true`, `sameSite: "lax"`, y `secure: true` en producción.
 3. **Criptografía de Contraseñas:** Algoritmo **Argon2id** (ganador del Password Hashing Competition) y soporte de Bcrypt.
-4. **Protección Perimetral:** `src/middleware.ts` intercepta todas las rutas protegidas (`/dashboard`, `/coach`, `/nutritionist`, `/admin`) validando roles antes de renderizar la vista.
+4. **Protección Perimetral (Proxy Edge de Next.js 16):** `src/proxy.ts` (convención oficial de Next.js 16 que reemplaza al antiguo middleware) intercepta todas las rutas protegidas (`/dashboard`, `/coach`, `/nutritionist`, `/admin`) validando roles y sesiones antes de renderizar la vista.
 5. **Sanitización de Datos:** Esquemas **Zod** en todas las fronteras de entrada para prevenir inyecciones NoSQL.
