@@ -142,21 +142,36 @@ if (¿Qué acción desea realizar?) then (Biometría)
   |Frontend / UI|
   :Abre modal BiometricsUpdater;
   |Atleta (Cliente)|
-  :Ingresa Peso actual y opcionalmente:
+  :Ingresa Peso actual (kg) y opcionalmente:
   - % Grasa Corporal
   - Circunferencias (Cintura, Cadera, Pecho, Brazo, Muslo, Pantorrilla);
+  :Pulsa 'Guardar Medidas';
   |Middleware / Server Actions / API|
   :Server Action logBiometrics();
-  :Valida con biometricsSchema;
+  :Valida entradas con biometricsSchema (Zod);
+  :Invoca Servicio de Dominio (src/lib/domain/biometrics.ts);
   if (¿Ingresó Cintura y Cadera?) then (Sí)
-    :Calcula automáticamente:
-    waistToHipRatio = round(waist / hip, 2);
+    :Calcula waistToHipRatio = round(waist / hip, 2);
+    :Evalúa estratificación de riesgo cardiovascular OMS
+    (Hombre > 0.90 / Mujer > 0.85);
   endif
+  :Invoca ProfileDAO.insertMeasurement(data);
   |Base de Datos (MongoDB)|
-  :Inserta documento en 'body_measurements' (mes_[ULID]);
-  :Actualiza physical.weightKg y % grasa en 'profiles';
-  |Frontend / UI|
+  :Inserta documento en colección 'body_measurements'
+  con estricta conformidad $jsonSchema:
+  - publicId: mes_[ULID]
+  - clientId: ObjectId
+  - logDate: BSON Date
+  - metrics: { weightKg, bodyFatPercentage }
+  - circumferences: { waistCm, hipCm, ... , waistToHipRatio }
+  - audit: { createdAt, updatedAt };
+  :Ejecuta ProfileDAO.updatePhysicalMetrics():
+  - Actualiza physical.weightKg y % grasa en 'profiles';
+  |Middleware / Server Actions / API|
   :Revalida caché (/dashboard y /profile);
+  |Frontend / UI|
+  :Muestra notificación de éxito (Feedback verde);
+  :Actualiza tarjetas del HUD y evolución de peso al instante;
 
 elseif (Entrenamiento en Vivo) then (Entrenar)
   |Frontend / UI|

@@ -121,18 +121,27 @@ De acuerdo con `src/proxy.ts`, `src/types/user.ts`, `src/lib/auth/session.ts` y 
 
 ### MÓDULO 3: TELEMETRÍA BIOMÉTRICA Y COMPOSICIÓN CORPORAL
 
-* **RF-3.1: Actualización Continua de Medidas y Circunferencias**
-  * **Implementación:** `BiometricsUpdater.tsx`, `logBiometrics` (`actions/profile.ts`), `profile.schema.ts`.
+* **RF-3.1: Actualización Continua de Medidas y Circunferencias (Conformidad con Validador MongoDB)**
+  * **Implementación:** `BiometricsUpdater.tsx`, `logBiometrics` (`actions/profile.ts`), `src/lib/domain/biometrics.ts`, `ProfileDAO.insertMeasurement` (`src/lib/dao/profile.dao.ts`), `profile.schema.ts`.
   * **Datos Capturados:**
     * Peso corporal actual (obligatorio, 20 a 500 kg).
     * Porcentaje de grasa corporal estimado (opcional, 1% a 60%).
     * Circunferencias anatómicas en cm: Cintura (`waistCm`: 30-200 cm), Cadera (`hipCm`: 30-200 cm), Pecho (`chestCm`: 40-200 cm), Brazo (`armCm`: 15-70 cm), Muslo (`thighCm`: 20-100 cm), Pantorrilla (`calfCm`: 15-70 cm).
-  * **Cálculo Clínico Automatizado:**
-    * Si se ingresan cintura y cadera, el servidor calcula automáticamente el **Ratio Cintura/Cadera (WHR)**:  
+  * **Cálculo Clínico Automatizado (Dominio Puro `biometrics.ts`):**
+    * Si se ingresan cintura y cadera, el motor de dominio calcula automáticamente el **Ratio Cintura/Cadera (WHR)**:  
       $$\text{waistToHipRatio} = \text{round}\left(\frac{\text{waistCm}}{\text{hipCm}}, 2\right)$$
-  * **Persistencia Doble:**
-    * Inserta un nuevo registro cronológico en `body_measurements` con identificador `mes_[ULID]`.
-    * Actualiza inmediatamente el campo `physical.weightKg` y `physical.bodyFatPercentage` en el perfil del usuario para disponibilidad instantánea en el HUD.
+    * **Estratificación de Riesgo Cardiovascular según la OMS:**
+      * En Hombres: $\text{WHR} > 0.90 \rightarrow \text{ALTO RIESGO}$; $\text{WHR} \le 0.90 \rightarrow \text{BAJO RIESGO}$.
+      * En Mujeres: $\text{WHR} > 0.85 \rightarrow \text{ALTO RIESGO}$; $\text{WHR} \le 0.85 \rightarrow \text{BAJO RIESGO}$.
+  * **Persistencia Estricta en Base de Datos (Conformidad `$jsonSchema`):**
+    * La capa `ProfileDAO` formatea e inserta el documento cumpliendo las restricciones físicas de la colección `body_measurements`:
+      * `clientId`: BSON `ObjectId` del atleta vinculado.
+      * `logDate`: BSON `Date` UTC de la medición.
+      * `metrics`: Subdocumento conteniendo `weightKg` (obligatorio) y `bodyFatPercentage`.
+      * `circumferences`: Subdocumento con circunferencias anatómicas en centímetros y `waistToHipRatio`.
+      * `audit`: Objeto de trazabilidad con `createdAt` y `updatedAt`.
+    * Actualiza inmediatamente el campo `physical.weightKg` y `physical.bodyFatPercentage` en el perfil del usuario (`profiles`) mediante upsert seguro para disponibilidad instantánea en el HUD y en las gráficas de evolución de peso.
+    * Soporte de lectura retrocompatible dual: la interfaz consulta tanto `$or: [{ userId }, { clientId }]` asegurando visualización continua de datos históricos.
 
 ---
 
@@ -304,6 +313,27 @@ De acuerdo con `src/proxy.ts`, `src/types/user.ts`, `src/lib/auth/session.ts` y 
   * **Gráfica de Evolución de Peso (`WeightChart`):** Recharts que grafica todas las mediciones de peso histórico del atleta.
   * **Tabla de Auditoría de Comidas:** Desglose cronológico de las últimas 50 comidas con macros individuales.
 
+* **RF-10.3: Telemetría de Carga de Entrenamiento y Prescripción Adaptativa**
+  * **Implementación:** `src/app/(dashboard)/nutritionist/[clientId]/page.tsx`, `src/lib/domain/trainingLoad.ts` (`analyzeTrainingLoad`).
+  * **Evaluación Continua del Estímulo (Ventana de 30 Días):**
+    * Analiza todas las sesiones en `workout_sessions` del atleta en los últimos 30 días para correlacionar gasto energético y daño muscular.
+    * Extrae 5 métricas biométricas de fatiga:
+      1. **Frecuencia Semanal:** Promedio de sesiones por semana ($\text{sesiones} \times 7 / 30$).
+      2. **Volumen Acumulado:** Tonelaje total levantado expresado en Toneladas ($Tn$) o Kilogramos ($Kg$).
+      3. **RPE Medio:** Esfuerzo percibido promedio en las series registradas (escala Borg modificada 1-10).
+      4. **Duración Media:** Minutos promedio invertidos por sesión de entrenamiento.
+      5. **Total de Sesiones:** Conteo total de entrenamientos completados en la ventana.
+  * **Clasificación Heurística de Carga:**
+    * **`HEAVY` (Carga Fuerte / Alta Exigencia):** Frecuencia $\ge 4\text{ días/sem}$ y ($\text{Volumen} \ge 35,000\text{ kg}$ o $\text{RPE Medio} \ge 8.0$). Indica alto vaciado de glucógeno y demanda de síntesis proteica.
+    * **`MODERATE` (Carga Moderada / Progresión Estándar):** Frecuencia $\ge 2.5\text{ días/sem}$ o $\text{Volumen} \ge 15,000\text{ kg}$.
+    * **`LIGHT` (Carga Suave / Descarga / Deload):** Sesiones esporádicas o volumen bajo ($< 15,000\text{ kg}$).
+  * **Prescripción Metabólica Adaptativa y Calibración:**
+    * Genera recomendaciones clínicas automáticas para el nutricionista:
+      * **Bajo Carga `HEAVY`:** Prescripción elevada de carbohidratos ($6.0 - 8.0\text{ g/kg}$) para repleción de glucógeno muscular, proteína alta ($2.0 - 2.4\text{ g/kg}$) e hidratación reforzada ($+1000\text{ ml}$).
+      * **Bajo Carga `MODERATE`:** Carbohidratos balanceados ($4.0 - 5.5\text{ g/kg}$), proteína estándar ($1.8 - 2.2\text{ g/kg}$) e hidratación de base.
+      * **Bajo Carga `LIGHT`:** Carbohidratos controlados ($2.5 - 4.0\text{ g/kg}$), ajuste a mantenimiento calórico o déficit para recomposición corporal.
+    * Banner de autocalibración inteligente sobre el formulario del protocolo nutricional (`dailyCalories`, `protein`, `carbs`, `fats`).
+
 ---
 
 ### MÓDULO 11: CENTRO DE COMANDO ADMINISTRATIVO (ADMIN COMMAND CENTER)
@@ -344,6 +374,33 @@ De acuerdo con `src/proxy.ts`, `src/types/user.ts`, `src/lib/auth/session.ts` y 
     * En caso de *Cache Miss*: Se ejecutan pipelines de agregación en MongoDB sobre `workout_sessions` y `nutrition_logs`, se computa el tonelaje, entrenamientos completados, porcentaje de adherencia y calorías promedio, se realiza un `upsert` en `dashboard_cache` y se retorna con `X-Cache: MISS`.
 
 ---
+
+### MÓDULO 13: CAPA DE ACCESO A DATOS (DAO PATTERN) Y ARQUITECTURA LIMPIA
+
+* **RF-13.1: Abstracción y Encapsulamiento de Persistencia (BaseDAO)**
+  * **Implementación:** `src/lib/dao/base.dao.ts`.
+  * Encapsula la conexión singleton al cliente nativo de MongoDB.
+  * Provee utilidades seguras para conversión de tipos BSON: `toObjectId` y `isValidObjectId` para blindar consultas contra excepciones de casteo.
+
+* **RF-13.2: DAOs Especializados por Entidad de Dominio**
+  * **`UserDAO` (`src/lib/dao/user.dao.ts`):** Consultas por `email.normalized`, búsqueda por `publicId` o `_id`, vinculación de entrenadores/nutricionistas (`coachId`, `nutritionistId`), actualización de roles RBAC y control atómico de intentos fallidos de autenticación (`failedAttempts`).
+  * **`WorkoutDAO` (`src/lib/dao/workout.dao.ts`):** Consultas y mutaciones sobre `exercise_library`, `workout_programs`, `program_assignments`, `workout_sessions` y `personal_records`.
+  * **`NutritionDAO` (`src/lib/dao/nutrition.dao.ts`):** Registro de comidas diarias (`meal_logs`), consulta del protocolo activo e inactivación atómica (`updateMany`) de planes cancelados en `nutrition_plans`.
+  * **`ProfileDAO` (`src/lib/dao/profile.dao.ts`):** Gestión de expedientes (`profiles`), inserción estricta de medidas físicas en `body_measurements` según `$jsonSchema` y actualización reactiva de peso corporal y grasa.
+  * **`AuditDAO` (`src/lib/dao/audit.dao.ts`):** Registro estructurado e inmutable de eventos de seguridad y transacciones críticas en la colección `audit_logs`.
+
+---
+
+### MÓDULO 14: SUITE DE TESTING TDD (TEST-DRIVEN DEVELOPMENT)
+
+* **RF-14.1: Cobertura Automatizada de Reglas de Negocio con Vitest**
+  * **Implementación:** `npm test`, `vitest.config.ts`, `src/__tests__/*`.
+  * 5 suites independientes de pruebas unitarias puras (22 tests pasando):
+    1. `metabolic.test.ts`: Ecuaciones de BMR Mifflin-St Jeor, factores PAL, proyección de superávit/déficit y balance estequiométrico de macronutrientes.
+    2. `biomechanics.test.ts`: Ecuación de 1RM de Epley, cálculo acumulativo de volumen de entrenamiento y reglas de auto-progresión basadas en RPE.
+    3. `biometrics.test.ts`: Ratio cintura/cadera (WHR) y clasificación de riesgo cardiovascular de la OMS para hombres y mujeres.
+    4. `trainingLoad.test.ts`: Algoritmo de detección de carga de entrenamiento (`HEAVY`, `MODERATE`, `LIGHT`) y formulación adaptativa de nutrientes de recuperación.
+    5. `user.schema.test.ts`: Validación de esquemas Zod para registro y autenticación.
 
 ## 4. CATÁLOGO DE REQUERIMIENTOS NO FUNCIONALES (RNF)
 
@@ -401,8 +458,11 @@ De acuerdo con `src/proxy.ts`, `src/types/user.ts`, `src/lib/auth/session.ts` y 
 | **RF-9: Vinculación Pro** | `src/actions/profile.ts`, `src/app/(dashboard)/profile/page.tsx` | `linkProfessional` (`coachId`, `nutritionistId`) |
 | **RF-10: Portal Coach** | `src/app/(dashboard)/coach/*`, `src/actions/workout.ts` | `CoachDashboard`, `createTrainingProgram`, `assignProgramToClient` |
 | **RF-11: Portal Nutrición** | `src/app/(dashboard)/nutritionist/*`, `nutritionist/[clientId]/*` | `NutritionistDashboard`, `setNutritionProtocol` |
+| **RF-11.3: Telemetría de Carga** | `src/lib/domain/trainingLoad.ts`, `src/app/(dashboard)/nutritionist/[clientId]/page.tsx` | `analyzeTrainingLoad` (HEAVY/MODERATE/LIGHT, macros adaptativos) |
 | **RF-12: Comando Admin** | `src/app/(dashboard)/admin/*`, `src/actions/admin.ts` | `AdminPage`, `updateUserRole`, `addExercise`, `deleteExercise` |
 | **RF-13: Caché & Analytics** | `src/app/api/dashboard/cache/route.ts`, `analytics/volume/route.ts` | `GET /api/dashboard/cache`, `GET /api/analytics/volume` |
+| **RF-14: Capa DAO (SOLID)** | `src/lib/dao/*`, `src/lib/domain/*` | `BaseDAO`, `UserDAO`, `WorkoutDAO`, `NutritionDAO`, `ProfileDAO`, `AuditDAO` |
+| **RF-15: Testing TDD** | `vitest.config.ts`, `src/__tests__/**/*` | 5 suites (Vitest), 22 tests unitarios pasando |
 
 ---
 *Fin del documento oficial de requerimientos.*

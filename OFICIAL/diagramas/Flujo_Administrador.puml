@@ -68,24 +68,27 @@ if (¿Qué operación desea realizar?) then (Gestión de Roles)
     :Lanza error 'Invalid role';
     stop
   else (Sí)
+    :Invoca UserDAO.updateRole(userId, newRole);
     |Base de Datos (MongoDB)|
     :Actualiza colección 'users':
     updateOne(publicId = userId, role = newRole);
     |Middleware / Server Actions|
+    :Invoca AuditDAO.log({ actorId, action: 'UPDATE_ROLE', ... });
     :Revalida ruta /admin (revalidatePath);
     |Frontend / Centro de Comando|
     :Refresca la tabla mostrando el nuevo rol y badge del usuario;
   endif
 
 elseif (Auditoría Forense) then (Auditoría)
-  |Frontend / Centro de Comando|
+  |Middleware / Server Actions|
+  :Invoca AuditDAO.getRecentLogs(10);
   |Base de Datos (MongoDB)|
-  :Lee colección 'audit_logs';
+  :Lee colección 'audit_logs' ordenada por timestamp desc;
   |Frontend / Centro de Comando|
   :Muestra registros estructurados:
   - Timestamp UTC (ISO)
   - ACTOR: publicId del usuario que ejecutó la acción
-  - ACTION: tipo de evento (ej: ASSIGN_PROGRAM)
+  - ACTION: tipo de evento (ej: ASSIGN_PROGRAM, UPDATE_ROLE)
   - TARGET: ObjectId o publicId del recurso afectado
   - DETAILS: metadatos JSON (programId, programName);
   |Administrador|
@@ -94,6 +97,8 @@ elseif (Auditoría Forense) then (Auditoría)
 elseif (Biblioteca de Ejercicios) then (Ejercicios)
   |Frontend / Centro de Comando|
   :Navega a /admin/exercises;
+  |Middleware / Server Actions|
+  :Invoca WorkoutDAO.getAllExercises();
   |Base de Datos (MongoDB)|
   :Carga documentos de 'exercise_library' ordenados por createdAt desc;
   |Frontend / Centro de Comando|

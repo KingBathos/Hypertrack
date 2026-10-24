@@ -59,7 +59,7 @@ endif
 - Sesiones de entrenamiento de últimos 30 días ('workout_sessions');
 
 |Middleware / Server Actions / API|
-:Ejecuta Motor Clínico de Cálculo:
+:Ejecuta Motor Clínico de Cálculo y Servicios de Dominio:
 1. BMR (Tasa Metabólica Basal) - Mifflin-St Jeor:
    * Hombre: 10*peso + 6.25*altura - 5*edad + 5
    * Mujer: 10*peso + 6.25*altura - 5*edad - 161
@@ -67,14 +67,23 @@ endif
 3. Proyección de metas calóricas:
    * Déficit (-500 kcal) | Mantenimiento (TDEE) | Superávit (+300 kcal)
 4. Ratio Cintura/Cadera (waistToHipRatio):
-   * Evaluación de riesgo cardiovascular según sexo
+   * Evaluación de riesgo cardiovascular según sexo (OMS)
 5. Adherencia de 7 días:
    * Promedios de Kcal, Proteínas, Carbos y Grasas
-   * % Adherencia = max(0, 100 - abs(avgCal - targetCal)/targetCal * 100);
+   * % Adherencia = max(0, 100 - abs(avgCal - targetCal)/targetCal * 100)
+6. Telemetría de Carga de Entrenamiento (analyzeTrainingLoad):
+   * Procesa historial de 30 días en 'workout_sessions'
+   * Calcula: frecuencia semanal, volumen total (Tn/Kg), RPE promedio y duración media
+   * Determina estado de estímulo: HEAVY (Fuerte) | MODERATE (Moderado) | LIGHT (Suave/Descarga)
+   * Formula directrices clínicas adaptativas (Carbohidratos en g/kg, Hidratación y Proteínas);
 
 |Frontend / Portal Nutricionista|
-:Renderiza Ficha Técnica Metabólica:
+:Renderiza Ficha Técnica Metabólica y de Rendimiento:
 - Header con BMR, TDEE Real y % Adherencia global
+- Tarjeta de Telemetría de Carga de Entrenamiento:
+  * Badge de Estado: HEAVY / MODERATE / LIGHT
+  * 5 KPIs de Rendimiento: Frecuencia semanal, Tonelaje total, RPE medio, Duración media y Total sesiones
+  * Directrices Clínicas y Recomendaciones de Nutrición Adaptativa
 - Fila de Composición Corporal: Peso, Altura, Edad, Grasa % y delta peso
 - Fila de Contexto: Nivel actividad, Sueño, Estrés, Frecuencia y Ratio C/C
 - Mediciones de Circunferencias: Cintura, Cadera, Pecho, Brazo, Muslo, Pantorrilla

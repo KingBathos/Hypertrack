@@ -124,11 +124,145 @@ HyperTrack/
 │   │   ├── profile.ts
 │   │   ├── user.ts
 │   │   └── workout.ts
-│   └── proxy.ts
-├── .env.local                             # Variables de Entorno y Configuración (DB/Secretos)
-├── next.config.ts                         # Configuración principal de Next.js
-├── package.json                           # Manifiesto de Dependencias Node
-└── tsconfig.json                          # Configuración estricta de TypeScript
+```text
+HyperTrack/
+├── .env.example                               # Plantilla de variables de entorno
+├── .env.local                                 # Variables de Entorno y Configuración (DB/Secretos)
+├── public/                                    # Assets estáticos (Imágenes, íconos)
+├── src/
+│   ├── proxy.ts                               # Edge Proxy RBAC (Next.js 16 standard)
+│   ├── actions/                               # Controladores / Server Actions desacopladas
+│   │   ├── admin.ts
+│   │   ├── nutrition.ts
+│   │   ├── onboarding.ts
+│   │   ├── profile.ts
+│   │   └── workout.ts
+│   ├── app/                                   # App Router de Next.js 16
+│   │   ├── (auth)/                            # /login, /register, /register-pro
+│   │   ├── (dashboard)/                       # /dashboard, /workout, /nutrition, /coach, /nutritionist, /admin
+│   │   └── api/                               # Handlers de las rutas Backend REST
+│   ├── components/                            # Componentes UI de React 19 reutilizables
+│   ├── lib/
+│   │   ├── auth/                              # Autenticación y JWT (Web Crypto API)
+│   │   ├── dao/                               # Capa de Acceso a Datos (DAO Pattern)
+│   │   │   ├── base.dao.ts                    # DAO base abstracto y helpers BSON
+│   │   │   ├── user.dao.ts                    # Persistencia de usuarios y RBAC
+│   │   │   ├── workout.dao.ts                 # Sesiones, rutinas, biblioteca de ejercicios
+│   │   │   ├── nutrition.dao.ts               # Protocolos y registros de comida
+│   │   │   ├── profile.dao.ts                 # Expedientes y medidas biométricas físicas
+│   │   │   └── audit.dao.ts                   # Registro y consulta de auditoría forense
+│   │   ├── domain/                            # Servicios puros de dominio (SOLID)
+│   │   │   ├── biomechanics.ts                # Epley 1RM, volumen de carga, RPE
+│   │   │   ├── metabolic.ts                   # Mifflin-St Jeor, TDEE real, macros
+│   │   │   ├── biometrics.ts                  # Ratio cintura/cadera WHR, riesgo OMS
+│   │   │   └── trainingLoad.ts                # Analizador de fatiga/carga y nutrición adaptativa
+│   │   ├── db/
+│   │   │   ├── mongodb.ts                     # Instancia singleton de conexión a MongoDB
+│   │   │   └── seeder.ts                      # Sembrador de datos de prueba
+│   │   └── schemas/                           # Validadores Zod en tiempo de ejecución
+│   └── __tests__/                             # Suite de pruebas unitarias TDD (Vitest)
+│       ├── domain/
+│       │   ├── biomechanics.test.ts
+│       │   ├── biometrics.test.ts
+│       │   ├── metabolic.test.ts
+│       │   └── trainingLoad.test.ts
+│       └── schemas/
+│           └── user.schema.test.ts
+├── next.config.ts                             # Configuración principal de Next.js
+├── package.json                               # Manifiesto de Dependencias Node
+├── tsconfig.json                              # Configuración estricta de TypeScript
+└── vitest.config.ts                           # Configuración del motor de pruebas Vitest
 ```
-// Problema dashboard ususario,
-Problema actual, en el dashboard principal tenemos un modulo de entrenamiento esta confuso, deberia de 
+
+---
+
+## 8. Arquitectura Limpia y Capa DAO (Data Access Object)
+
+Para cumplir con altos estándares de mantenibilidad y desacoplar completamente la lógica de negocio de las consultas directas al driver de base de datos, HyperTrack implementa el **Patrón DAO**:
+
+```
+[ Vista / UI ] 
+      │ (Invoca)
+[ Server Action / Controlador ] 
+      │ (Valida con Zod)
+      ├──────────────────────────────┐
+      │                              │
+[ Servicio de Dominio Puro ]   [ Capa DAO Tipada ]
+ (Cálculos matemáticos/clínicos) (BaseDAO, UserDAO, WorkoutDAO, ...)
+                                     │
+                               [ MongoDB Driver ]
+```
+
+### Componentes de la Capa DAO:
+1. **`BaseDAO` (`src/lib/dao/base.dao.ts`):** 
+   - Provee el método protegido `getCollection<T>(name)` que garantiza una conexión activa al cluster singleton.
+   - Provee funciones de conversión segura `toObjectId(id)` y `isValidObjectId(id)` para prevenir inyecciones o excepciones de casteo de BSON.
+2. **`UserDAO` (`src/lib/dao/user.dao.ts`):**
+   - Búsqueda por correo normalizado (`email.normalized`), `publicId` o `_id`.
+   - Vinculación atómica de profesionales (`coachId`, `nutritionistId`).
+   - Modificación dinámica de roles RBAC (`updateRole`).
+   - Manejo de seguridad en autenticación: incremento de `failedAttempts` y actualización de `lastLoginAt`.
+3. **`WorkoutDAO` (`src/lib/dao/workout.dao.ts`):**
+   - Consultas sobre `exercise_library`, programas de entrenamiento (`workout_programs`), asignaciones activas (`program_assignments`), sesiones completadas (`workout_sessions`) y récords personales (`personal_records`).
+4. **`NutritionDAO` (`src/lib/dao/nutrition.dao.ts`):**
+   - Gestión del protocolo activo, cancelación en lote (`updateMany`) de planes caducados y registro cronológico en `meal_logs`.
+5. **`ProfileDAO` (`src/lib/dao/profile.dao.ts`):**
+   - Inserción estricta en `body_measurements` según el validador `$jsonSchema` de MongoDB y sincronización atómica en `profiles`.
+6. **`AuditDAO` (`src/lib/dao/audit.dao.ts`):**
+   - Registro estructurado de eventos de seguridad y transacciones críticas en la colección `audit_logs`.
+
+---
+
+## 9. Servicios de Dominio Puro (SOLID - SRP)
+
+La lógica matemática, de física mecánica y médica reside en funciones puras sin efectos secundarios en `src/lib/domain/`, satisfaciendo el Principio de Responsabilidad Única (SRP):
+
+1. **`metabolic.ts`:**
+   - Ecuación de Mifflin-St Jeor para Tasa Metabólica Basal (BMR).
+   - Cálculo de Gasto Energético Total Diario (TDEE Real) indexado al factor de actividad física (PAL).
+   - Generación de metas calóricas y distribución estequiométrica de macronutrientes (Proteínas, Carbohidratos, Grasas).
+2. **`biomechanics.ts`:**
+   - Estimación de 1RM mediante la fórmula de Epley ($1RM = w \times (1 + r/30)$).
+   - Cómputo de volumen de carga total ($\sum w \times r$).
+   - Evaluación del Esfuerzo Percibido (RPE) y recomendaciones de sobrecarga progresiva (`OVERLOAD` / `DELOAD`).
+3. **`biometrics.ts`:**
+   - Ratio Cintura/Cadera (WHR) y estratificación de riesgo cardiovascular según los estándares clínicos de la OMS.
+4. **`trainingLoad.ts`:**
+   - Análisis de fatiga y carga de entrenamiento en ventanas de 30 días (`analyzeTrainingLoad`).
+   - Clasificación heurística de estímulo: `HEAVY` (Fuerte), `MODERATE` (Moderado), `LIGHT` (Suave / Descarga).
+   - Prescripción metabólica adaptativa: sugerencia dinámica de carbohidratos (g/kg), hidratación y proteínas para el nutricionista.
+
+---
+
+## 10. Metodología TDD y Suite de Pruebas Unitarias (Vitest)
+
+El sistema integra **Vitest** como motor de pruebas de ultra-baja latencia y compatibilidad nativa con TypeScript:
+
+```bash
+# Ejecutar todas las pruebas unitarias
+npm test
+
+# Modo interactivo en caliente
+npm run test:watch
+```
+
+- **5 Suites de Pruebas Automatizadas:**
+  1. `src/__tests__/domain/metabolic.test.ts` (5 pruebas)
+  2. `src/__tests__/domain/biomechanics.test.ts` (5 pruebas)
+  3. `src/__tests__/domain/biometrics.test.ts` (4 pruebas)
+  4. `src/__tests__/domain/trainingLoad.test.ts` (3 pruebas)
+  5. `src/__tests__/schemas/user.schema.test.ts` (5 pruebas)
+- **Total:** 22 pruebas unitarias ejecutadas al 100% de éxito con 0 fallos.
+
+---
+
+## 11. Seguridad y Edge Runtime en Next.js 16
+
+1. **Convención `proxy.ts` de Next.js 16:**
+   - Next.js 16 deprecó `middleware.ts` en favor de `proxy.ts`. HyperTrack implementa el control de acceso perimetral directamente en `src/proxy.ts`, garantizando compatibilidad total con la última versión del framework y eliminando conflictos de runtime.
+2. **Prevención de Ataques de Temporización (Anti-Timing Attacks):**
+   - En el endpoint de inicio de sesión (`/api/auth/login`), ante intentos de acceso con correos no existentes, el servidor introduce un retardo artificial de 300 ms antes de responder con `INVALID_CREDENTIALS`, impidiendo a un atacante inferir si una cuenta existe midiendo los tiempos de respuesta de la red.
+3. **Criptografía Robusta:**
+   - Hashing con **Argon2id** (resistente a ataques acelerados por GPU/ASIC).
+   - Tokens JWT firmados nativamente con la Web Crypto API (`crypto.subtle`) mediante HS256, transportados en cookies `HttpOnly`, `SameSite: Lax` y `Secure`.
+ 
