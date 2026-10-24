@@ -34,11 +34,11 @@ docs/
     │   ├── DiagramaLogico.puml
     │   ├── DiagramaClases.puml
     │   └── DISENO_FISICO_BD.puml
-    └── workflows/                    # Flujos completos por rol (PlantUML + PNG)
-        ├── Flujo_Usuario.puml        # Flujo de actividades del Atleta
-        ├── Flujo_Nutricionista.puml  # Flujo del Nutricionista y telemetría de carga
-        ├── Flujo_Entrenador.puml     # Flujo del Entrenador y asignación de rutinas
-        └── Flujo_Administrador.puml  # Flujo del Administrador y auditoría forense
+    └── workflows/                    # Flujos completos por rol (.puml + .svg)
+        ├── Flujo_Usuario.puml / .svg       # Flujo de actividades del Atleta
+        ├── Flujo_Nutricionista.puml / .svg # Flujo del Nutricionista y telemetría de carga
+        ├── Flujo_Entrenador.puml / .svg    # Flujo del Entrenador y asignación de rutinas
+        └── Flujo_Administrador.puml / .svg # Flujo del Administrador y auditoría forense
 ```
 
 ---
@@ -62,6 +62,6 @@ docs/
 
 ### 4. Diagramas de Procesos
 - **[diagrams/DIAGRAMAS.md](diagrams/DIAGRAMAS.md):** Resumen visual de flujos en diagramas Mermaid integrados en Markdown.
-- **[diagrams/workflows/](diagrams/workflows/):** Diagramas de flujo PlantUML oficiales con sus correspondientes capturas PNG renderizadas en alta resolución para cada uno de los 4 roles del sistema.
-- **[diagrams/activity/](diagrams/activity/):** Diagramas de actividad PlantUML para Autenticación, Entrenamiento, Nutrición y Vinculación.
-- **[diagrams/logical/](diagrams/logical/):** Diagrama lógico general, diagrama de clases del dominio y diseño físico de base de datos.
+- **[diagrams/workflows/](diagrams/workflows/):** Diagramas de flujo PlantUML oficiales con sus correspondientes archivos vectoriales **SVG** actualizados en alta resolución para cada uno de los 4 roles del sistema.
+- **[diagrams/activity/](diagrams/activity/):** Diagramas de actividad PlantUML y **SVG** para Autenticación, Entrenamiento, Nutrición y Vinculación.
+- **[diagrams/logical/](diagrams/logical/):** Diagrama lógico general, diagrama de clases del dominio y diseño físico de base de datos en PlantUML y **SVG**.

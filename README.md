@@ -301,11 +301,11 @@ HyperTrack - mongoDB/
 │       ├── DIAGRAMAS.md             # Especificación de diagramas y visualización Mermaid
 │       ├── activity/                # Diagramas de actividad (Auth, Entrenamiento, Nutrición)
 │       ├── logical/                 # Diagramas lógicos, diseño físico y de clases
-│       └── workflows/               # Diagramas de flujo por rol (PlantUML + PNG)
-│           ├── Flujo_Usuario.puml (.png)
-│           ├── Flujo_Nutricionista.puml (.png)
-│           ├── Flujo_Entrenador.puml (.png)
-│           └── Flujo_Administrador.puml (.png)
+│       └── workflows/               # Diagramas de flujo por rol (.puml + .svg)
+│           ├── Flujo_Usuario.puml (.svg)
+│           ├── Flujo_Nutricionista.puml (.svg)
+│           ├── Flujo_Entrenador.puml (.svg)
+│           └── Flujo_Administrador.puml (.svg)
 ├── scripts/                         # Scripts de automatización y base de datos
 │   ├── database/                    # Diagnóstico e inspección física de colecciones
 │   ├── fixValidation.ts
@@ -337,6 +337,7 @@ Para profundizar en el diseño e ingeniería del sistema, consulta los siguiente
 - 📐 [docs/architecture/ARQUITECTURA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/ARQUITECTURA.md): Especificación arquitectónica técnica y diseño modular.
 - 📋 [docs/requirements/REQUERIMIENTOS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/requirements/REQUERIMIENTOS.md): Especificación formal completa de requerimientos funcionales y no funcionales.
 - 🗄 [docs/architecture/DIAGRAMA_ER.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/DIAGRAMA_ER.md): Diccionario de colecciones, índices y esquemas de MongoDB.
-- 📊 [docs/diagrams/workflows/](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/workflows/): Diagramas de flujo PlantUML y renderizados PNG de todos los roles del sistema.
+- 📊 [docs/diagrams/workflows/](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/workflows/): Diagramas de flujo en formato PlantUML (.puml) y vectores gráficos de alta resolución (.svg) de todos los roles.
 - 📑 [docs/diagrams/DIAGRAMAS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/DIAGRAMAS.md): Modelado de procesos en diagramas Mermaid interactivos.
+
 
