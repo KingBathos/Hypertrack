@@ -283,47 +283,45 @@ npm test
 HyperTrack - mongoDB/
 ├── .env.example                     # Plantilla de variables de entorno
 ├── .env.local                       # Variables de entorno locales (ignorado en git)
-├── DOCUMENTACION_RUBRICA.md         # Mapeo y cumplimiento de la rúbrica académica/profesional
-├── ARQUITECTURA.md                  # Especificación de la arquitectura Clean/DAO/SOLID
-├── DIAGRAMA_ER.md                   # Diseño entidad-relación y esquemas MongoDB
-├── OFICIAL/
-│   ├── REQUERIMIENTOS.md            # Catálogo oficial exhaustivo de requerimientos RF/RNF
-│   └── diagramas/                   # Diagramas PlantUML de flujos por rol
-│       ├── Flujo_Usuario.puml       # Flujo completo del atleta
-│       ├── Flujo_Nutricionista.puml # Flujo completo del nutricionista con telemetría
-│       ├── Flujo_Entrenador.puml    # Flujo completo del coach
-│       └── Flujo_Administrador.puml # Flujo completo del administrador
-├── src/
+├── docs/                            # Documentación técnica, requerimientos y diagramas
+│   ├── README.md                    # Índice general y guía de la documentación
+│   ├── architecture/                # Arquitectura técnica, BD y evaluación de rúbrica
+│   │   ├── ARQUITECTURA.md          # Arquitectura Clean/Hexagonal, DAO y SOLID
+│   │   ├── DOCUMENTACION_RUBRICA.md # Informe formal de rúbrica (MVC, TDD, DAO, SOLID, Git)
+│   │   ├── DIAGRAMA_ER.md           # Diccionario de datos y diseño físico MongoDB
+│   │   └── db-structure.json        # Esquemas y muestras de documentos BSON
+│   ├── requirements/                # Requerimientos de software y análisis de negocio
+│   │   ├── REQUERIMIENTOS.md        # Catálogo consolidado oficial de requerimientos RF/RNF
+│   │   ├── CASOS_DE_USO.md          # Casos de uso de negocio y diagramas de actores
+│   │   └── PESTEL.md                # Análisis de macroentorno estratégico
+│   ├── guides/                      # Guías de despliegue y producto
+│   │   ├── GUIA_EJECUCION.md        # Guía paso a paso de instalación y ejecución local
+│   │   └── ONBOARDING_ROADMAP.md    # Hoja de ruta del producto y flujo de onboarding
+│   └── diagrams/                    # Modelado visual y diagramas
+│       ├── DIAGRAMAS.md             # Especificación de diagramas y visualización Mermaid
+│       ├── activity/                # Diagramas de actividad (Auth, Entrenamiento, Nutrición)
+│       ├── logical/                 # Diagramas lógicos, diseño físico y de clases
+│       └── workflows/               # Diagramas de flujo por rol (PlantUML + PNG)
+│           ├── Flujo_Usuario.puml (.png)
+│           ├── Flujo_Nutricionista.puml (.png)
+│           ├── Flujo_Entrenador.puml (.png)
+│           └── Flujo_Administrador.puml (.png)
+├── scripts/                         # Scripts de automatización y base de datos
+│   ├── database/                    # Diagnóstico e inspección física de colecciones
+│   ├── fixValidation.ts
+│   ├── migrateRoutines.ts
+│   └── seedData.ts
+├── src/                             # Código fuente de la aplicación (Next.js 16)
 │   ├── proxy.ts                     # Edge Proxy RBAC (Next.js 16 standard)
 │   ├── actions/                     # Server Actions desacopladas (Controladores)
-│   │   ├── admin.ts
-│   │   ├── nutrition.ts
-│   │   ├── onboarding.ts
-│   │   ├── profile.ts
-│   │   └── workout.ts
-│   ├── app/                         # Rutas del App Router (Vistas Server/Client)
-│   │   ├── (auth)/                  # /login, /register, /register-pro
-│   │   ├── (dashboard)/             # /dashboard, /workout, /nutrition, /coach, /nutritionist, /admin
-│   │   └── api/                     # Endpoints REST complementarios
-│   ├── components/                  # Componentes de UI reutilizables
+│   ├── app/                         # App Router (Vistas Server/Client Components)
+│   ├── components/                  # Componentes de UI reactivos reutilizables
 │   ├── lib/
 │   │   ├── dao/                     # Capa de Acceso a Datos (DAO Pattern)
-│   │   │   ├── base.dao.ts          # DAO base con conexión y conversores BSON
-│   │   │   ├── user.dao.ts          # Operaciones sobre colección users
-│   │   │   ├── workout.dao.ts       # Sesiones, programas, biblioteca de ejercicios
-│   │   │   ├── nutrition.dao.ts     # Planes nutricionales y registros de comidas
-│   │   │   ├── profile.dao.ts       # Perfiles y mediciones biométricas
-│   │   │   └── audit.dao.ts         # Registro y consulta de auditoría forense
-│   │   ├── domain/                  # Servicios puros de dominio (SOLID)
-│   │   │   ├── biomechanics.ts      # 1RM Epley, volumen de carga, RPE
-│   │   │   ├── metabolic.ts         # Mifflin-St Jeor, TDEE real, macros
-│   │   │   ├── biometrics.ts        # WHR, riesgo cardiovascular OMS
-│   │   │   └── trainingLoad.ts      # Analizador de carga y nutrición adaptativa
-│   │   ├── db/                      # Conexión nativa a MongoDB y Seeder
-│   │   └── schemas/                 # Validación de esquemas con Zod
-│   └── __tests__/                   # Suite de pruebas unitarias TDD (Vitest)
-│       ├── domain/
-│       └── schemas/
+│   │   ├── domain/                  # Lógica de Dominio Puro (SOLID - SRP)
+│   │   ├── db/                      # Conexión nativa a MongoDB y seeder
+│   │   └── schemas/                 # Validación en tiempo de ejecución con Zod
+│   └── __tests__/                   # Suite de pruebas unitarias TDD con Vitest (22 tests)
 ├── package.json
 └── tsconfig.json
 ```
@@ -332,10 +330,13 @@ HyperTrack - mongoDB/
 
 ## 📚 Documentación Técnica Adicional
 
-Para profundizar en el diseño e ingeniería del sistema, consulta los siguientes documentos:
+Para profundizar en el diseño e ingeniería del sistema, consulta los siguientes documentos organizados en la carpeta `docs/`:
 
-- 📄 [DOCUMENTACION_RUBRICA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/DOCUMENTACION_RUBRICA.md): Mapeo punto por punto de MVC, DAO, SOLID, TDD, Seguridad y equivalencias con librerías Java.
-- 📐 [ARQUITECTURA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/ARQUITECTURA.md): Especificación arquitectónica técnica y diseño modular.
-- 📋 [OFICIAL/REQUERIMIENTOS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/OFICIAL/REQUERIMIENTOS.md): Especificación formal de requerimientos funcionales y no funcionales.
-- 🗄 [DIAGRAMA_ER.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/DIAGRAMA_ER.md): Diccionario de colecciones, índices y esquemas de MongoDB.
-- 📊 [OFICIAL/diagramas/](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/OFICIAL/diagramas/): Diagramas de flujo PlantUML de todos los roles del sistema.
+- 🚀 [docs/guides/GUIA_EJECUCION.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/guides/GUIA_EJECUCION.md): Guía paso a paso para clonar, configurar, sembrar y correr el proyecto.
+- 📄 [docs/architecture/DOCUMENTACION_RUBRICA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/DOCUMENTACION_RUBRICA.md): Mapeo punto por punto de MVC, DAO, SOLID, TDD, Seguridad y equivalencias con librerías Java.
+- 📐 [docs/architecture/ARQUITECTURA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/ARQUITECTURA.md): Especificación arquitectónica técnica y diseño modular.
+- 📋 [docs/requirements/REQUERIMIENTOS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/requirements/REQUERIMIENTOS.md): Especificación formal completa de requerimientos funcionales y no funcionales.
+- 🗄 [docs/architecture/DIAGRAMA_ER.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/DIAGRAMA_ER.md): Diccionario de colecciones, índices y esquemas de MongoDB.
+- 📊 [docs/diagrams/workflows/](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/workflows/): Diagramas de flujo PlantUML y renderizados PNG de todos los roles del sistema.
+- 📑 [docs/diagrams/DIAGRAMAS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/DIAGRAMAS.md): Modelado de procesos en diagramas Mermaid interactivos.
+
