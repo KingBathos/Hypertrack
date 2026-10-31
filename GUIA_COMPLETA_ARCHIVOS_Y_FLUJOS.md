@@ -61,7 +61,7 @@ HyperTrack - mongoDB/
 │   └── app/                        # Rutas de Next.js (App Router)
 │       ├── (auth)/                 # Rutas públicas: login, register, login profesional
 │       ├── (dashboard)/            # Rutas privadas: dashboard, workout, coach, nutritionist, admin
-│       ├── (onboarding)/           # Flujo de bienvenida y captura biométrica
+│       ├── (onboarding)/           # Flujo de registro inicial y captura biométrica
 │       └── api/                    # Endpoints internos REST
 ```
 
@@ -133,7 +133,7 @@ Esta capa encapsula el 100% de las consultas a MongoDB para que el resto del sis
 
 ### 1. [`src/lib/dao/base.dao.ts`](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/src/lib/dao/base.dao.ts) (Clase Base Abstracta)
 - Define la conexión Singleton reutilizable a MongoDB para no saturar los pools de conexiones.
-- Provee métodos auxiliares vitales:
+- Provee métodos auxiliares esenciales:
   - `toObjectId(id)`: Convierte un string a `ObjectId` de MongoDB de forma segura. Si el string está corrupto, retorna `null` en vez de provocar una excepción que tumbe el servidor.
   - `isValidObjectId(id)`: Valida si una cadena cumple con el formato hexadecimal de 24 caracteres.
 
@@ -251,11 +251,11 @@ El sistema cuenta con TypeScript estricto. Cada dominio tiene su archivo de tipo
 HyperTrack cuenta con **22 pruebas automatizadas** que se ejecutan con `npm test`:
 
 ```
- ✓ src/__tests__/domain/biomechanics.test.ts (5 tests)
- ✓ src/__tests__/domain/trainingLoad.test.ts (3 tests)
- ✓ src/__tests__/domain/biometrics.test.ts (4 tests)
- ✓ src/__tests__/domain/metabolic.test.ts (5 tests)
- ✓ src/__tests__/schemas/user.schema.test.ts (5 tests)
+ [PASS] src/__tests__/domain/biomechanics.test.ts (5 tests)
+ [PASS] src/__tests__/domain/trainingLoad.test.ts (3 tests)
+ [PASS] src/__tests__/domain/biometrics.test.ts (4 tests)
+ [PASS] src/__tests__/domain/metabolic.test.ts (5 tests)
+ [PASS] src/__tests__/schemas/user.schema.test.ts (5 tests)
 
  Test Files  5 passed (5)
       Tests  22 passed (22)
@@ -316,7 +316,7 @@ Endpoints JSON para llamadas asíncronas desde componentes de cliente:
   - `CaloriesChart.tsx` y `WeightChart.tsx`: Gráficos interactivos construidos con **Recharts** para visualizar la tendencia de peso y consumo calórico.
   - `MuscleHeatmap.tsx` / `StatRadar.tsx`: Gráfico de radar que muestra la distribución de fatiga muscular (Push, Pull, Legs, Core) para alertar al entrenador sobre sobreentrenamiento.
 - **Seguimiento de Entrenamiento (`src/components/workout/`):**
-  - `WorkoutTracker.tsx`: El corazón del entrenamiento en vivo con temporizador de descanso de 90 segundos y cálculo reactivo en pantalla.
+  - `WorkoutTracker.tsx`: Componente principal para la interfaz de entrenamiento en tiempo real con temporizador de descanso de 90 segundos y cálculo reactivo en pantalla.
 - **Formularios con validación en cliente (`src/components/forms/`):**
   - Formularios conectados con `react-hook-form` y `@hookform/resolvers/zod` para validar antes de enviar.
 

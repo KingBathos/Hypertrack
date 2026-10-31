@@ -553,7 +553,7 @@ HyperTrack - mongoDB/
 │   └── app/                        # Rutas de Next.js (App Router)
 │       ├── (auth)/                 # Rutas públicas: login, register, pro/login, pro/register
 │       ├── (dashboard)/            # Rutas privadas: dashboard, workout, coach, nutritionist, admin
-│       ├── (onboarding)/           # Flujo de bienvenida y captura biométrica
+│       ├── (onboarding)/           # Flujo de incorporación inicial y captura biométrica
 │       └── api/                    # Endpoints internos REST
 ```
 

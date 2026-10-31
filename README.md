@@ -1,4 +1,4 @@
-# ⚡ HyperTrack — High-Performance Athletic & Metabolic Telemetry Platform
+# HyperTrack — High-Performance Athletic & Metabolic Telemetry Platform
 
 <div align="center">
 
@@ -16,7 +16,7 @@
 
 ---
 
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
 1. [Descripción General](#-descripción-general)
 2. [Arquitectura e Ingeniería de Software](#-arquitectura-e-ingeniería-de-software)
@@ -30,18 +30,18 @@
 
 ---
 
-## 🚀 Descripción General
+## Descripción General
 
 **HyperTrack** es un SaaS de alto rendimiento diseñado para cerrar la brecha entre el entrenamiento de fuerza, la nutrición clínica y la supervisión profesional multidisciplinaria:
 
 - **Para el Atleta:** Bitácora en vivo con cronómetro reactivo SVG de descanso, cálculo holográfico de volumen acumulado, estimación automática de 1RM (Epley), detección de récords personales (PRs), gamificación RPG (XP y racha de fuego), y seguimiento antropométrico (WHR / Ratio Cintura-Cadera).
 - **Para el Nutricionista:** Telemetría de fatiga y carga de entrenamiento (`analyzeTrainingLoad`) que clasifica el estímulo en **HEAVY / MODERATE / LIGHT**, sugiriendo calibraciones automáticas de carbohidratos, hidratación y calorías según la intensidad real del atleta en los últimos 30 días. Cálculo clínico de BMR (Mifflin-St Jeor), TDEE real y adherencia a macros.
 - **Para el Entrenador (Coach):** Roster de atletas asignados, radar muscular de fatiga (Push/Pull/Legs/Core), constructor de programas maestros y asignación de rutinas con auto-progresión de sobrecarga.
-- **Para el Administrador:** Centro de comando de seguridad, auditoría forense en tiempo real (`audit_logs`), conmutación de roles en caliente (RBAC) y mantenimiento de la biblioteca de ejercicios.
+- **Para el Administrador:** Panel de administración y seguridad, auditoría forense en tiempo real (`audit_logs`), conmutación de roles en caliente (RBAC) y mantenimiento de la biblioteca de ejercicios.
 
 ---
 
-## 🏛 Arquitectura e Ingeniería de Software
+## Arquitectura e Ingeniería de Software
 
 HyperTrack implementa una **Arquitectura Limpia / Hexagonal** modular, orientada a principios de alta mantenibilidad:
 
@@ -78,7 +78,7 @@ HyperTrack implementa una **Arquitectura Limpia / Hexagonal** modular, orientada
 
 ---
 
-## 💻 Requisitos Previos
+## Requisitos Previos
 
 Asegúrate de contar con las siguientes herramientas en tu entorno local:
 
@@ -92,7 +92,7 @@ Asegúrate de contar con las siguientes herramientas en tu entorno local:
 
 ---
 
-## 🛠 Guía de Instalación y Ejecución Paso a Paso
+## Guía de Instalación y Ejecución Paso a Paso
 
 Sigue esta guía paso a paso para poner en marcha el proyecto desde cero:
 
@@ -159,11 +159,11 @@ npm test
 
 *Salida esperada:*
 ```text
- ✓ src/__tests__/domain/metabolic.test.ts (5 tests)
- ✓ src/__tests__/domain/biomechanics.test.ts (5 tests)
- ✓ src/__tests__/domain/biometrics.test.ts (4 tests)
- ✓ src/__tests__/domain/trainingLoad.test.ts (3 tests)
- ✓ src/__tests__/schemas/user.schema.test.ts (5 tests)
+ [PASS] src/__tests__/domain/metabolic.test.ts (5 tests)
+ [PASS] src/__tests__/domain/biomechanics.test.ts (5 tests)
+ [PASS] src/__tests__/domain/biometrics.test.ts (4 tests)
+ [PASS] src/__tests__/domain/trainingLoad.test.ts (3 tests)
+ [PASS] src/__tests__/schemas/user.schema.test.ts (5 tests)
 
  Test Files  5 passed (5)
       Tests  22 passed (22)
@@ -190,11 +190,11 @@ npm run dev
 ```
 
 Abre tu navegador en:
-👉 **[http://localhost:3000](http://localhost:3000)**
+**[http://localhost:3000](http://localhost:3000)**
 
 ---
 
-## 🔑 Credenciales y Cuentas de Demostración
+## Credenciales y Cuentas de Demostración
 
 Puedes ingresar registrándote directamente en la plataforma o utilizando las credenciales sembradas:
 
@@ -213,7 +213,7 @@ Puedes ingresar registrándote directamente en la plataforma o utilizando las cr
 
 ---
 
-## 🧭 Flujo de Usuarios y Portales por Rol
+## Flujo de Usuarios y Portales por Rol
 
 ### 1. Portal del Atleta (`/dashboard`)
 - **HUD Central:** Racha activa, toneladas mensuales acumuladas, sesiones completadas en 30 días y porcentaje de recuperación.
@@ -235,7 +235,7 @@ Puedes ingresar registrándote directamente en la plataforma o utilizando las cr
 - **Constructor de Programas:** Creación de rutinas por días de la semana con ejercicios de la biblioteca, series objetivo y repeticiones.
 - **Asignación:** Vinculación directa de programas con atletas.
 
-### 4. Centro de Comando del Administrador (`/admin`)
+### 4. Portal del Administrador (`/admin`)
 - **Métricas Globales:** Conteo de atletas activos, kilos acumulados en la plataforma y planes nutricionales activos.
 - **Gestión de Personal y Roles:** Modificación en caliente de roles de usuario (`USER`, `COACH`, `NUTRITIONIST`, `ADMIN`) sin reiniciar el servidor.
 - **Radar de Auditoría Forense:** Registro inmutable de eventos de seguridad y transacciones críticas en la colección `audit_logs`.
@@ -243,7 +243,7 @@ Puedes ingresar registrándote directamente en la plataforma o utilizando las cr
 
 ---
 
-## 🧪 Suite de Pruebas Unitarias (TDD)
+## Suite de Pruebas Unitarias (TDD)
 
 El proyecto cuenta con cobertura exhaustiva de pruebas unitarias sobre la lógica de dominio y validación:
 
@@ -277,7 +277,7 @@ npm test
 
 ---
 
-## 📂 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```text
 HyperTrack - mongoDB/
@@ -328,16 +328,16 @@ HyperTrack - mongoDB/
 
 ---
 
-## 📚 Documentación Técnica Adicional
+## Documentación Técnica Adicional
 
 Para profundizar en el diseño e ingeniería del sistema, consulta los siguientes documentos organizados en la carpeta `docs/`:
 
-- 🚀 [docs/guides/GUIA_EJECUCION.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/guides/GUIA_EJECUCION.md): Guía paso a paso para clonar, configurar, sembrar y correr el proyecto.
-- 📄 [docs/architecture/DOCUMENTACION_RUBRICA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/DOCUMENTACION_RUBRICA.md): Mapeo punto por punto de MVC, DAO, SOLID, TDD, Seguridad y equivalencias con librerías Java.
-- 📐 [docs/architecture/ARQUITECTURA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/ARQUITECTURA.md): Especificación arquitectónica técnica y diseño modular.
-- 📋 [docs/requirements/REQUERIMIENTOS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/requirements/REQUERIMIENTOS.md): Especificación formal completa de requerimientos funcionales y no funcionales.
-- 🗄 [docs/architecture/DIAGRAMA_ER.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/DIAGRAMA_ER.md): Diccionario de colecciones, índices y esquemas de MongoDB.
-- 📊 [docs/diagrams/workflows/](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/workflows/): Diagramas de flujo en formato PlantUML (.puml) y vectores gráficos de alta resolución (.svg) de todos los roles.
-- 📑 [docs/diagrams/DIAGRAMAS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/DIAGRAMAS.md): Modelado de procesos en diagramas Mermaid interactivos.
+- [docs/guides/GUIA_EJECUCION.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/guides/GUIA_EJECUCION.md): Guía paso a paso para clonar, configurar, sembrar y correr el proyecto.
+- [docs/architecture/DOCUMENTACION_RUBRICA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/DOCUMENTACION_RUBRICA.md): Mapeo punto por punto de MVC, DAO, SOLID, TDD, Seguridad y equivalencias con librerías Java.
+- [docs/architecture/ARQUITECTURA.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/ARQUITECTURA.md): Especificación arquitectónica técnica y diseño modular.
+- [docs/requirements/REQUERIMIENTOS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/requirements/REQUERIMIENTOS.md): Especificación formal completa de requerimientos funcionales y no funcionales.
+- [docs/architecture/DIAGRAMA_ER.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/architecture/DIAGRAMA_ER.md): Diccionario de colecciones, índices y esquemas de MongoDB.
+- [docs/diagrams/workflows/](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/workflows/): Diagramas de flujo en formato PlantUML (.puml) y vectores gráficos de alta resolución (.svg) de todos los roles.
+- [docs/diagrams/DIAGRAMAS.md](file:///c:/Users/Usuario/Documents/Proyectos/Base%20de%20Datos/HyperTrack%20-%20mongoDB/docs/diagrams/DIAGRAMAS.md): Modelado de procesos en diagramas Mermaid interactivos.
 
 

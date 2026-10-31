@@ -1,10 +1,10 @@
-# 📚 Centro de Documentación Técnica — HyperTrack
+# Centro de Documentación Técnica — HyperTrack
 
-Bienvenido al centro de documentación de **HyperTrack**. Toda la documentación del proyecto ha sido organizada en módulos temáticos para facilitar su consulta y evaluación.
+Repositorio central de documentación técnica del sistema **HyperTrack**. Toda la documentación del proyecto se encuentra organizada en módulos temáticos para su consulta, auditoría y evaluación formal.
 
 ---
 
-## 🧭 Mapa de Navegación de la Documentación
+## Mapa de Navegación de la Documentación
 
 ```text
 docs/
@@ -43,7 +43,7 @@ docs/
 
 ---
 
-## 📑 Índice de Contenidos
+## Índice de Contenidos
 
 ### 1. Arquitectura y Rúbrica
 - **[architecture/ARQUITECTURA.md](architecture/ARQUITECTURA.md):** Detalla la arquitectura hexagonal, la separación de capas (Presentación $\to$ Server Actions $\to$ Dominio Puro $\to$ Capa DAO $\to$ MongoDB), el Edge Proxy (`src/proxy.ts`), y la suite Vitest de pruebas unitarias.

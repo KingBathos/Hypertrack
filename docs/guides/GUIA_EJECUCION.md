@@ -1,10 +1,10 @@
-# 📖 Guía de Ejecución Paso a Paso — HyperTrack
+# Guía de Ejecución Paso a Paso — HyperTrack
 
 Esta guía proporciona el procedimiento exacto y verificado para clonar, configurar, poblar, probar y ejecutar **HyperTrack** en un entorno de desarrollo local desde cero.
 
 ---
 
-## 🛠 1. Prerrequisitos del Sistema
+## 1. Prerrequisitos del Sistema
 
 Asegúrate de contar con los siguientes programas instalados en tu computadora:
 
@@ -28,7 +28,7 @@ Asegúrate de contar con los siguientes programas instalados en tu computadora:
 
 ---
 
-## 🚀 2. Clonación y Configuración del Entorno
+## 2. Clonación y Configuración del Entorno
 
 ### Paso 2.1: Clonar el repositorio
 Abre una terminal (PowerShell en Windows o Bash en macOS/Linux):
@@ -69,7 +69,7 @@ BCRYPT_SALT_ROUNDS=12
 
 ---
 
-## 📦 3. Instalación de Dependencias
+## 3. Instalación de Dependencias
 
 Instala los módulos de Node.js requeridos. **Importante:** Debido a que el proyecto utiliza React 19 y Next.js 16 con librerías del ecosistema React, se debe usar la bandera `--legacy-peer-deps`:
 
@@ -79,7 +79,7 @@ npm install --legacy-peer-deps
 
 ---
 
-## 🗄 4. Poblado de la Base de Datos (Database Seeding)
+## 4. Poblado de la Base de Datos (Database Seeding)
 
 Para poder probar de inmediato la plataforma con atletas, historiales de levantamiento, bitácoras de comidas y biometría, ejecuta el script de siembra automática:
 
@@ -91,7 +91,7 @@ npx ts-node run-seed.ts
 
 ---
 
-## 🧪 5. Ejecución de Pruebas Unitarias (TDD)
+## 5. Ejecución de Pruebas Unitarias (TDD)
 
 HyperTrack cuenta con una suite completa de pruebas unitarias desarrolladas bajo la metodología TDD con **Vitest**. Para ejecutarlas y comprobar que todos los cálculos matemáticos, clínicos y esquemas Zod funcionan al 100%:
 
@@ -110,7 +110,7 @@ npm test
 
 ---
 
-## 🔍 6. Comprobación Estática de Tipos (TypeScript)
+## 6. Comprobación Estática de Tipos (TypeScript)
 
 Para asegurar que no existen incompatibilidades ni errores de tipado estricto:
 
@@ -122,7 +122,7 @@ npx tsc --noEmit
 
 ---
 
-## ⚡ 7. Iniciar la Aplicación en Modo Desarrollo
+## 7. Iniciar la Aplicación en Modo Desarrollo
 
 Levanta el servidor local con soporte Webpack optimizado:
 
@@ -141,7 +141,7 @@ Abre tu navegador web en: **[http://localhost:3000](http://localhost:3000)**
 
 ---
 
-## 👥 8. Cuentas y Roles de Demostración para Pruebas
+## 8. Cuentas y Roles de Demostración para Pruebas
 
 El sistema cuenta con un Control de Acceso Basado en Roles (RBAC) estricto administrado por el Edge Proxy (`src/proxy.ts`). Puedes probar cada uno de los roles:
 
@@ -181,7 +181,7 @@ El sistema cuenta con un Control de Acceso Basado en Roles (RBAC) estricto admin
 
 ---
 
-## 🏗 9. Compilación y Ejecución para Producción
+## 9. Compilación y Ejecución para Producción
 
 Para compilar el proyecto para un entorno de producción optimizado:
 
@@ -195,7 +195,7 @@ npm start
 
 ---
 
-## ❓ 10. Preguntas Frecuentes y Solución de Problemas
+## 10. Preguntas Frecuentes y Solución de Problemas
 
 ### 1. Error de instalación con npm: `ERESOLVE could not resolve`
 - **Causa:** Conflicto de versiones peer dependencies entre React 19 y librerías auxiliares.

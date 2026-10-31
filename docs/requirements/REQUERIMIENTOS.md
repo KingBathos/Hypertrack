@@ -29,7 +29,7 @@ De acuerdo con `src/proxy.ts`, `src/types/user.ts`, `src/lib/auth/session.ts` y 
 
 | Rol | Identificador en Código | Descripción y Alcance |
 | :--- | :--- | :--- |
-| **Atleta / Cliente** | `USER` | Acceso al Dashboard de 3 pilares, registro de mediciones biométricas, ejecución de entrenamientos en vivo (modo programa o libre), creación de plantillas propias, bitácora histórica, registro de comidas y vinculación de profesionales. |
+| **Atleta / Cliente** | `USER` | Acceso al Dashboard de 3 módulos de rendimiento, registro de mediciones biométricas, ejecución de entrenamientos en vivo (modo programa o libre), creación de plantillas propias, bitácora histórica, registro de comidas y vinculación de profesionales. |
 | **Entrenador Físico** | `COACH` | Acceso a `/coach`. Visualización del roster de atletas vinculados, telemetría de fatiga (Radar muscular Push/Pull/Legs/Core y Mapa de Calor Anatómico), constructor de programas maestros y asignación de protocolos. |
 | **Nutricionista** | `NUTRITIONIST` | Acceso a `/nutritionist`. Visualización del roster de atletas vinculados, cálculo de BMR/TDEE clínico, evaluación de adherencia a macronutrientes de 7 días, auditoría de comidas registradas y formulación de protocolos calóricos. |
 | **Administrador** | `ADMIN` | Acceso estricto a `/admin`. Gestión global de usuarios (modificación de roles en caliente), métricas globales de plataforma, radar de logs de seguridad en vivo y mantenimiento CRUD de la biblioteca de ejercicios (`exercise_library`). |
@@ -154,7 +154,7 @@ De acuerdo con `src/proxy.ts`, `src/types/user.ts`, `src/lib/auth/session.ts` y 
 
 * **RF-4.2: Temporizador de Descanso Inteligente (Telemetry HUD)**
   * Temporizador circular SVG interactivo configurado por defecto a **90 segundos**.
-  * Al completar cualquier serie mediante el botón de check (✓), se dispara la cuenta regresiva.
+  * Al completar cualquier serie mediante el botón de confirmación de serie realizada, se dispara la cuenta regresiva.
   * El encabezado del sistema entra en estado visual de **RECUPERACIÓN** (fondo rojo/óxido con animación de pulso).
   * Posibilidad de saltar o cancelar el descanso anticipadamente.
   * Al expirar el tiempo (0 s), el sistema emite una **alerta visual flash** en pantalla completa y reproduce feedback auditivo interactivo (`Audio API`).

@@ -262,11 +262,11 @@ npm test
 ```
 
 ```
- ✓ src/__tests__/domain/biomechanics.test.ts (5 tests)
- ✓ src/__tests__/domain/trainingLoad.test.ts (3 tests)
- ✓ src/__tests__/domain/biometrics.test.ts (4 tests)
- ✓ src/__tests__/domain/metabolic.test.ts (5 tests)
- ✓ src/__tests__/schemas/user.schema.test.ts (5 tests)
+ [PASS] src/__tests__/domain/biomechanics.test.ts (5 tests)
+ [PASS] src/__tests__/domain/trainingLoad.test.ts (3 tests)
+ [PASS] src/__tests__/domain/biometrics.test.ts (4 tests)
+ [PASS] src/__tests__/domain/metabolic.test.ts (5 tests)
+ [PASS] src/__tests__/schemas/user.schema.test.ts (5 tests)
 
  Test Files  5 passed (5)
       Tests  22 passed (22)
