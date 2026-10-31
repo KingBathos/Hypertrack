@@ -1,0 +1,150 @@
+@startuml Ciclo_Vida_Peticion
+title HyperTrack - Ciclo de Vida de una Petición (Request Lifecycle)
+caption Flujo de ejecución detallado: Cliente (React 19) -> Edge Proxy -> Server Actions -> Dominio Puro -> Capa DAO -> MongoDB 7.4 -> Revalidación
+
+skinparam BackgroundColor #FFFFFF
+skinparam Shadowing false
+skinparam DefaultFontName "Segoe UI", "Helvetica", "Arial", sans-serif
+skinparam DefaultFontSize 12
+skinparam RoundCorner 8
+skinparam TitleFontSize 16
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0F172A
+skinparam CaptionFontSize 11
+skinparam CaptionFontColor #64748B
+
+' Estilos de flechas y conectores
+skinparam ArrowColor #2563EB
+skinparam ArrowThickness 1.5
+skinparam ArrowFontColor #1E293B
+skinparam ArrowFontSize 11
+
+' Estilos de actividades
+skinparam ActivityBorderThickness 1.5
+skinparam ActivityBorderColor #334155
+skinparam ActivityBackgroundColor #FFFFFF
+skinparam ActivityFontColor #0F172A
+
+' Estilos de rombos de decisión
+skinparam ActivityDiamondBorderColor #D97706
+skinparam ActivityDiamondBackgroundColor #FEF3C7
+skinparam ActivityDiamondFontColor #92400E
+skinparam ActivityDiamondFontSize 11
+
+' Estilos de notas
+skinparam NoteBorderColor #94A3B8
+skinparam NoteBackgroundColor #F8FAFC
+skinparam NoteFontColor #334155
+skinparam NoteFontSize 11
+
+' Definición de Calles / Swimlanes con colores técnicos suaves
+|#F0F9FF|1. Cliente (React 19)|
+|#EEF2FF|2. Edge Proxy (src/proxy.ts)|
+|#ECFDF5|3. Controladores (src/actions/*)|
+|#FAF5FF|4. Dominio Puro (src/lib/domain/*)|
+|#EFF6FF|5. Capa DAO (src/lib/dao/*)|
+|#F0FDF4|6. Base de Datos (MongoDB 7.4)|
+|#FFF1F2|7. Revalidación y Retorno|
+
+|1. Cliente (React 19)|
+start
+:Usuario interactúa con la interfaz web
+(ej: Clic en **"Finalizar Entrenamiento"** o **"Guardar Comida"**);
+:React Hook Form captura datos del formulario;
+:Validación preliminar en el cliente con Zod;
+:Despacho de petición HTTP / RPC hacia el servidor Next.js;
+
+|2. Edge Proxy (src/proxy.ts)|
+:Intercepción perimetral en **Edge Runtime**
+(antes de resolver rutas o renderizar componentes);
+:Extrae la cookie **ht_session** de las cabeceras HTTP;
+
+if (¿Existe cookie y firma HMAC-SHA256 válida?) then (No)
+  #FEE2E2:Redirección forzada HTTP 307
+  a **/login?from=[pathname]**;
+  stop
+else (Sí)
+  :Decodifica payload del JWT:
+  • sub: publicId del usuario (ej: usr_01J...)
+  • role: USER, COACH, NUTRITIONIST, ADMIN
+  • exp: timestamp de expiración;
+
+  if (¿Rol autorizado para la ruta solicitada?) then (No / Intento no autorizado)
+    #FEE2E2:Redirección forzada HTTP 307
+    a **/dashboard** (Control RBAC);
+    stop
+  else (Sí)
+    #DCFCE7:NextResponse.next()
+    Cede el control a la capa de servidor;
+  endif
+endif
+
+|3. Controladores (src/actions/*)|
+:Llega la invocación a la Server Action
+(ej: **logWorkoutSession** en src/actions/workout.ts);
+:Re-verifica sesión en el servidor con getSession()
+(Estrategia de defensa en profundidad);
+:Valida la estructura de datos con el esquema Zod
+(ej: workoutSessionSchema.safeParse(data));
+
+if (¿Datos cumplen con el contrato Zod?) then (No / Datos inválidos)
+  #FEE2E2:Lanza excepción / Retorna error HTTP 400
+  (Previene inyecciones o datos corruptos);
+  stop
+else (Sí / Payload válido)
+  :Extrae parámetros limpios y tipados;
+endif
+
+|4. Dominio Puro (src/lib/domain/*)|
+:Invoca módulos de cálculo matemático puro
+(Sin dependencias de red, I/O ni base de datos);
+
+fork
+  :src/lib/domain/biomechanics.ts
+  • **calculateEpley1RM**(weight, reps)
+  • **calculateVolumeLoad**(sets)
+  • **evaluateRPETarget**(rpe);
+fork again
+  :src/lib/domain/metabolic.ts
+  • **calculateBMR**(peso, altura, edad, sexo)
+  • **calculateTDEE**(bmr, actividad)
+  • **calculateMacroTargets**(calorías, meta);
+fork again
+  :src/lib/domain/trainingLoad.ts
+  • **analyzeTrainingLoad**(sesiones30Días)
+  • Clasificación: **HEAVY / MODERATE / LIGHT**;
+end fork
+
+:Retorna resultados calculados con precisión flotante;
+
+|5. Capa DAO (src/lib/dao/*)|
+:El controlador invoca métodos de la capa DAO
+(ej: **WorkoutDAO.insertWorkoutSession** y **upsertPR**);
+:Hereda de **BaseDAO<T>**;
+:Sanitiza y convierte identificadores con **toObjectId()**
+(Evita caídas por BSON ObjectId malformado);
+:Construye operaciones atómicas de MongoDB
+($set, $max, $push, aggregation pipelines);
+
+|6. Base de Datos (MongoDB 7.4)|
+:El driver nativo ejecuta operaciones sobre el motor;
+:Aplica validadores físicos **$jsonSchema** de la colección;
+:Persiste documento en **workout_sessions** / **nutrition_plans**;
+:Actualiza récord personal en **personal_records** con operador **$max**;
+:Registra traza inmutable en **audit_logs** (AuditDAO);
+
+|7. Revalidación y Retorno|
+:Server Action invoca **revalidatePath('/dashboard')**;
+:Next.js purga la caché de Server Components;
+:Retorna DTO tipado al cliente
+{ success: true, sessionId: "wks_01J..." };
+
+|1. Cliente (React 19)|
+:React 19 reconcilia el árbol de componentes;
+:Actualiza gráficas interactivas con **Recharts**
+(VolumeChart, MacroRings, Racha de días);
+:Muestra notificación de éxito en la interfaz;
+stop
+
+@enduml
+
