@@ -8,6 +8,7 @@ const withPWA = require("next-pwa")({
 
 const nextConfig: NextConfig = {
   turbopack: {}, // Silences Next 16 turbopack warning caused by next-pwa injecting webpack config
+  allowedDevOrigins: ["192.168.1.82", "localhost"],
 };
 
 export default withPWA(nextConfig);

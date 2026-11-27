@@ -102,6 +102,16 @@
   .animate-slide-up {
     animation: slideUp 0.4s ease-out forwards;
   }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 @keyframes slideUp {

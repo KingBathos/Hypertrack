@@ -20,7 +20,7 @@ export default async function WorkoutHistoryPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 relative z-10">
       <header className="mb-12 border-b-4 border-red-600 pb-6">
-        <h1 className="text-5xl md:text-7xl font-heading font-black text-white uppercase tracking-tighter">
+        <h1 className="text-3xl sm:text-5xl md:text-7xl font-heading font-black text-white uppercase tracking-tighter">
           BITÁCORA DE COMBATE
         </h1>
         <p className="mt-2 text-lg text-zinc-400 font-mono uppercase tracking-widest font-bold">

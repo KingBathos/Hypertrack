@@ -194,7 +194,7 @@ export default function LiveWorkoutPage() {
 
       <div className="relative z-10 max-w-3xl mx-auto px-4 pt-28 pb-32">
         <header className="mb-10 text-center flex flex-col items-center">
-          <h1 className="text-5xl font-heading font-black tracking-tighter text-white uppercase">
+          <h1 className="text-3xl sm:text-5xl font-heading font-black tracking-tighter text-white uppercase">
             {programName ? programName : "MODO GIMNASIO"}
           </h1>
           {/* Telemetría Holográfica de Volumen */}

@@ -102,7 +102,7 @@ export function RegisterForm() {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-3.5 sm:gap-5"
     >
       {/* Error del servidor */}
       {serverError && (
@@ -149,7 +149,7 @@ export function RegisterForm() {
         loading={isSubmitting}
         fullWidth
         size="lg"
-        className="mt-2"
+        className="mt-1 sm:mt-2"
       >
         Crear cuenta
       </Button>

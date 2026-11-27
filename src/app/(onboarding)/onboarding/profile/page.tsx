@@ -47,11 +47,11 @@ export default async function OnboardingProfilePage({
 
       {/* ── Card principal ── */}
       <div className="relative z-10 w-full max-w-lg">
-        <div className="bg-black border-2 border-zinc-800 p-8 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)]">
-          <div className="mb-6 flex flex-col items-center gap-3">
+        <div className="bg-black border-2 border-zinc-800 p-5 sm:p-8 shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] sm:shadow-[8px_8px_0px_0px_rgba(220,38,38,1)]">
+          <div className="mb-5 sm:mb-6 flex flex-col items-center gap-3">
             <Logo size="md" />
-            <div className="text-center mt-4">
-              <h1 className="text-4xl font-heading font-black tracking-tighter text-white uppercase">
+            <div className="text-center mt-2 sm:mt-4">
+              <h1 className="text-2xl sm:text-4xl font-heading font-black tracking-tighter text-white uppercase">
                 COMPLETA TU PERFIL
               </h1>
               <p className="mt-2 text-xs font-mono tracking-widest uppercase font-bold text-zinc-500">

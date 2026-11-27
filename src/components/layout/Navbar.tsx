@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { getSession } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/ui/logout-button";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 export async function Navbar() {
   const session = await getSession();
@@ -17,6 +18,7 @@ export async function Navbar() {
     : "/dashboard";
 
   return (
+    <>
     <nav className="sticky top-0 z-50 w-full border-b-4 border-zinc-900 bg-black">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
@@ -101,5 +103,7 @@ export async function Navbar() {
         )}
       </div>
     </nav>
+    {session && session.role && <MobileBottomNav role={session.role} />}
+    </>
   );
 }

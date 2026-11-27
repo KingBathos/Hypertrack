@@ -120,7 +120,7 @@ export default async function CoachDashboard() {
     <div className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-8">
       <header className="mb-12 border-b-4 border-red-600 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-5xl md:text-7xl font-heading font-black text-white uppercase tracking-tighter">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-heading font-black text-white uppercase tracking-tighter">
             CLIENT ROSTER
           </h1>
           <p className="mt-2 text-lg text-zinc-400 font-mono uppercase tracking-widest font-bold">

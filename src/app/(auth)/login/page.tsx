@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 function LoginPageContent() {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
+    <div className="relative flex min-h-[calc(100dvh-4.25rem)] items-center justify-center overflow-hidden px-4 py-3 sm:py-10">
       {/* ── Fondo decorativo ── */}
       {/* Grid sutil */}
       <div
@@ -35,26 +35,26 @@ function LoginPageContent() {
 
       {/* ── Card principal (Brutalism) ── */}
       <div className="relative z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="bg-black border-2 border-zinc-800 p-8 shadow-[8px_8px_0px_0px_rgba(220,38,38,1)]">
-          <div className="mb-8 flex flex-col items-center gap-4">
+        <div className="bg-black border-2 border-zinc-800 p-4 sm:p-8 shadow-[4px_4px_0px_0px_rgba(220,38,38,1)] sm:shadow-[8px_8px_0px_0px_rgba(220,38,38,1)]">
+          <div className="mb-4 sm:mb-8 flex flex-col items-center gap-2 sm:gap-4">
             <Logo size="lg" />
-            <div className="text-center mt-4">
-              <h1 className="text-4xl font-heading font-black tracking-tighter text-white uppercase">
+            <div className="text-center mt-1 sm:mt-4">
+              <h1 className="text-2xl sm:text-4xl font-heading font-black tracking-tighter text-white uppercase">
                 BIENVENIDO AL SISTEMA
               </h1>
-              <p className="mt-2 text-xs font-mono tracking-widest uppercase font-bold text-zinc-500">
+              <p className="mt-1 sm:mt-2 text-[11px] sm:text-xs font-mono tracking-widest uppercase font-bold text-zinc-500">
                 INICIA SESIÓN PARA CONTINUAR
               </p>
             </div>
           </div>
           {/* Separador */}
-          <div className="mb-8 border-b-2 border-dashed border-zinc-800" />
+          <div className="mb-4 sm:mb-8 border-b-2 border-dashed border-zinc-800" />
 
           {/* Formulario — necesita Suspense por useSearchParams */}
           <LoginForm />
 
           {/* Footer */}
-          <div className="mt-8 border-t-2 border-dashed border-zinc-800 pt-6 flex flex-col gap-4">
+          <div className="mt-4 sm:mt-8 border-t-2 border-dashed border-zinc-800 pt-4 sm:pt-6 flex flex-col gap-3 sm:gap-4">
             <p className="text-center text-xs font-mono font-bold uppercase tracking-widest text-zinc-500">
               ¿NO TIENES CUENTA?{" "}
               <a

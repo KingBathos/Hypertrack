@@ -9,8 +9,8 @@ interface LogoProps {
 
 const sizeConfig = {
   sm: "text-2xl",
-  md: "text-4xl",
-  lg: "text-5xl md:text-6xl",
+  md: "text-3xl sm:text-4xl",
+  lg: "text-[2.6rem] leading-none sm:text-5xl md:text-6xl",
 };
 
 export function Logo({ size = "md", className = "" }: LogoProps) {

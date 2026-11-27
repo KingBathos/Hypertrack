@@ -257,11 +257,11 @@ export default async function UserDashboard() {
     <div className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-10 sm:px-6 lg:px-8">
       
       {/* ── HEADER ── */}
-      <header className="mb-8 border-b-4 border-red-600 pb-6">
-        <h1 className="text-5xl md:text-7xl font-heading font-black text-white uppercase tracking-tighter">
+      <header className="mb-6 sm:mb-8 border-b-4 border-red-600 pb-4 sm:pb-6">
+        <h1 className="text-3xl sm:text-5xl md:text-7xl font-heading font-black text-white uppercase tracking-tighter">
           BIENVENIDO, {firstName}
         </h1>
-        <p className="mt-2 text-lg text-zinc-400 font-mono uppercase tracking-widest font-bold">
+        <p className="mt-2 text-sm sm:text-lg text-zinc-400 font-mono uppercase tracking-widest font-bold">
           SISTEMA DE HIPERTROFIA ACTIVADO
         </p>
       </header>
@@ -269,10 +269,10 @@ export default async function UserDashboard() {
       {/* ── HUD BANNER ── */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         {/* Streak */}
-        <div className="bg-zinc-950 border-2 border-zinc-800 p-4 text-center group hover:border-red-600/50 transition-colors">
+        <div className="bg-zinc-950 border-2 border-zinc-800 p-3 sm:p-4 text-center group hover:border-red-600/50 transition-colors">
           <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">RACHA ACTIVA</p>
-          <p className="text-4xl font-black text-white group-hover:text-red-500 transition-colors">
-            {streak}<span className="text-lg text-zinc-500 ml-1">DÍAS</span>
+          <p className="text-2xl sm:text-4xl font-black text-white group-hover:text-red-500 transition-colors">
+            {streak}<span className="text-sm sm:text-lg text-zinc-500 ml-1">DÍAS</span>
           </p>
           <div className="flex justify-center gap-0.5 mt-2">
             {Array.from({ length: Math.min(streak, 7) }).map((_, i) => (
@@ -285,23 +285,23 @@ export default async function UserDashboard() {
         </div>
 
         {/* Monthly Tonnage */}
-        <div className="bg-zinc-950 border-2 border-zinc-800 p-4 text-center group hover:border-red-600/50 transition-colors">
+        <div className="bg-zinc-950 border-2 border-zinc-800 p-3 sm:p-4 text-center group hover:border-red-600/50 transition-colors">
           <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">TONELAJE MENSUAL</p>
-          <p className="text-4xl font-black text-white group-hover:text-red-500 transition-colors">
-            {monthlyTonnage > 0 ? `${(monthlyTonnage / 1000).toFixed(1)}` : "—"}<span className="text-lg text-zinc-500 ml-1">TON</span>
+          <p className="text-2xl sm:text-4xl font-black text-white group-hover:text-red-500 transition-colors">
+            {monthlyTonnage > 0 ? `${(monthlyTonnage / 1000).toFixed(1)}` : "—"}<span className="text-sm sm:text-lg text-zinc-500 ml-1">TON</span>
           </p>
         </div>
 
         {/* Sessions */}
-        <div className="bg-zinc-950 border-2 border-zinc-800 p-4 text-center group hover:border-red-600/50 transition-colors">
+        <div className="bg-zinc-950 border-2 border-zinc-800 p-3 sm:p-4 text-center group hover:border-red-600/50 transition-colors">
           <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">SESIONES (30D)</p>
-          <p className="text-4xl font-black text-white group-hover:text-red-500 transition-colors">{totalSessions}</p>
+          <p className="text-2xl sm:text-4xl font-black text-white group-hover:text-red-500 transition-colors">{totalSessions}</p>
         </div>
 
         {/* Recovery Status */}
-        <div className={`bg-zinc-950 border-2 ${recoveryBorder} p-4 text-center`}>
+        <div className={`bg-zinc-950 border-2 ${recoveryBorder} p-3 sm:p-4 text-center`}>
           <p className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-widest mb-1">RECUPERACIÓN</p>
-          <p className={`text-2xl font-black ${recoveryColor} uppercase`}>{recoveryStatus}</p>
+          <p className={`text-lg sm:text-2xl font-black ${recoveryColor} uppercase`}>{recoveryStatus}</p>
           {lastSessionSummary && (
             <p className="text-[10px] text-zinc-600 font-mono mt-1">{lastSessionSummary.timeAgo.toUpperCase()}</p>
           )}
